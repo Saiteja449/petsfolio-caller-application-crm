@@ -106,4 +106,19 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
     fun endCall() {
         CallManager.disconnect()
     }
+
+    @ReactMethod
+    fun setMute(muted: Boolean) {
+        CallManager.setMute(muted)
+    }
+
+    @ReactMethod
+    fun setSpeaker(speaker: Boolean) {
+        CallManager.setSpeaker(speaker)
+    }
+
+    @ReactMethod
+    fun getCurrentCall(promise: Promise) {
+        promise.resolve(CallManager.getCurrentCallState())
+    }
 }

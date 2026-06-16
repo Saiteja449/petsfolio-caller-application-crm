@@ -7,9 +7,13 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.WritableMap
 
+import android.telecom.InCallService
+import android.telecom.CallAudioState
+
 object CallManager {
     var currentCall: Call? = null
     var reactContext: ReactApplicationContext? = null
+    var callService: InCallService? = null
 
     fun updateCall(call: Call) {
         currentCall = call
@@ -31,6 +35,17 @@ object CallManager {
             params.putString("phoneNumber", call.details?.handle?.schemeSpecificPart ?: "Unknown")
             sendEvent("onCallStateChanged", params)
         }
+    }
+
+    fun getCurrentCallState(): WritableMap? {
+        val call = currentCall ?: return null
+        val number = call.details?.handle?.schemeSpecificPart ?: "Unknown"
+        val stateString = getCallStateString(call.state)
+        
+        val params = Arguments.createMap()
+        params.putString("state", stateString)
+        params.putString("phoneNumber", number)
+        return params
     }
 
     private fun sendEvent(eventName: String, params: WritableMap) {
@@ -59,5 +74,14 @@ object CallManager {
     
     fun disconnect() {
         currentCall?.disconnect()
+    }
+    
+    fun setMute(muted: Boolean) {
+        callService?.setMuted(muted)
+    }
+
+    fun setSpeaker(speaker: Boolean) {
+        val route = if (speaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
+        callService?.setAudioRoute(route)
     }
 }
