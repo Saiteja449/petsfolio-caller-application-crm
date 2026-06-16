@@ -1,6 +1,6 @@
 import Text from '../components/AppText';
 import React from 'react';
-import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useCalls } from '../context/CallContext';
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
@@ -13,10 +13,8 @@ import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
 
 const IncomingCallScreen = () => {
   const { incomingCall } = useCalls();
-  const callData = incomingCall || {
-    customerName: 'Test Caller',
-    phoneNumber: '+1 234 567 8900',
-  };
+  if (!incomingCall) return null;
+  const callData = incomingCall;
 
   const handleAccept = () => {
     answerCall();
@@ -27,30 +25,32 @@ const IncomingCallScreen = () => {
   };
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.content}>
-        <Text style={styles.label}>Incoming Call</Text>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {getInitials(callData.customerName)}
-          </Text>
-        </View>
-        <Text style={styles.name}>{callData.customerName}</Text>
-        <Text style={styles.phone}>{callData.phoneNumber}</Text>
-        <Text style={styles.ringing}>Ringing...</Text>
+    <Modal visible={true} transparent={true} animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.content}>
+          <Text style={styles.label}>Incoming Call</Text>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {getInitials(callData.customerName)}
+            </Text>
+          </View>
+          <Text style={styles.name}>{callData.customerName}</Text>
+          <Text style={styles.phone}>{callData.phoneNumber}</Text>
+          <Text style={styles.ringing}>Ringing...</Text>
 
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionCol} onPress={handleReject}>
-            <RejectIcon size={56} />
-            <Text style={styles.actionLabel}>Reject</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCol} onPress={handleAccept}>
-            <AcceptIcon size={56} />
-            <Text style={styles.actionLabel}>Accept</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionCol} onPress={handleReject}>
+              <RejectIcon size={56} />
+              <Text style={styles.actionLabel}>Reject</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCol} onPress={handleAccept}>
+              <AcceptIcon size={56} />
+              <Text style={styles.actionLabel}>Accept</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -58,7 +58,8 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 23, 42, 0.95)',
-    zIndex: 1000,
+    zIndex: 9999,
+    elevation: 9999,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,

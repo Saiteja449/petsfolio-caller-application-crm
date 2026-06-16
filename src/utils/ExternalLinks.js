@@ -2,7 +2,11 @@ import { Linking, Alert } from 'react-native';
 
 export const openWhatsApp = (phone) => {
   if (!phone) return;
-  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  let cleanPhone = phone.replace(/[^\d+]/g, '');
+  cleanPhone = cleanPhone.replace(/^\+910/, '+91');
+  if (!cleanPhone.startsWith('+')) {
+    cleanPhone = '+91' + cleanPhone.replace(/^0/, '');
+  }
   const url = `whatsapp://send?phone=${cleanPhone}`;
   
   Linking.canOpenURL(url)
@@ -18,7 +22,11 @@ export const openWhatsApp = (phone) => {
 
 export const openSMS = (phone) => {
   if (!phone) return;
-  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  let cleanPhone = phone.replace(/[^\d+]/g, '');
+  cleanPhone = cleanPhone.replace(/^\+910/, '+91');
+  if (!cleanPhone.startsWith('+')) {
+    cleanPhone = '+91' + cleanPhone.replace(/^0/, '');
+  }
   const url = `sms:${cleanPhone}`;
   
   Linking.canOpenURL(url)

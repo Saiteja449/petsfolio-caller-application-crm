@@ -25,7 +25,7 @@ export const AnalyticsProvider = ({ children }) => {
     const todayCalls = callLogs.filter((c) => new Date(c.date) >= today);
 
     const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    weekAgo.setDate(weekAgo.getDate() - 5);
     const weekCalls = callLogs.filter((c) => new Date(c.date) >= weekAgo);
 
     const monthAgo = new Date();
@@ -97,6 +97,8 @@ export const AnalyticsProvider = ({ children }) => {
       connectionRate: monthTotal > 0 ? Math.round((monthConnected / monthTotal) * 100) : 0,
     };
 
+    const weekDurations = weekCalls.filter((c) => c.duration > 0).map((c) => parseInt(c.duration));
+
     return {
       overview,
       today: {
@@ -106,9 +108,16 @@ export const AnalyticsProvider = ({ children }) => {
         connectedToday: todayCalls.filter((c) => c.status === 'connected').length,
       },
       weekly: {
-        callsThisWeek: weekCalls.length,
-        talkTime: weekCalls.reduce((sum, c) => sum + parseInt(c.duration), 0),
-        performanceScore: 87, // Mocked score
+        totalCalls: weekCalls.length,
+        incomingCalls: weekCalls.filter((c) => c.callType === 'incoming').length,
+        outgoingCalls: weekCalls.filter((c) => c.callType === 'outgoing').length,
+        missedCalls: weekCalls.filter((c) => c.callType === 'missed' || c.status === 'missed').length,
+        connectedCalls: weekCalls.filter((c) => c.status === 'connected').length,
+        rejectedCalls: weekCalls.filter((c) => c.status === 'rejected').length,
+        notConnectedCalls: weekCalls.filter((c) => c.status === 'not-connected').length,
+        totalTalkTime: weekCalls.reduce((sum, c) => sum + parseInt(c.duration), 0),
+        averageDuration: weekDurations.length > 0 ? Math.round(weekDurations.reduce((sum, d) => sum + d, 0) / weekDurations.length) : 0,
+        longestDuration: weekDurations.length > 0 ? Math.max(...weekDurations) : 0,
       },
       monthly,
       callTypeBreakdown: {

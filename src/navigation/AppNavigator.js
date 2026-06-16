@@ -96,15 +96,15 @@ const TabNavigator = () => (
 const AppNavigator = () => (
   <View style={styles.root}>
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="ActiveCall">
-        <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
-        <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {/* <Stack.Screen name="IncomingCall" component={IncomingCallScreen} /> */}
+        {/* <Stack.Screen name="ActiveCall" component={ActiveCallScreen} /> */}
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="CallDetails" component={CallDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
-    {/* <IncomingCallScreen /> */}
-    {/* <ActiveCallScreen /> */}
+    <IncomingCallScreen />
+    <ActiveCallScreen />
   </View>
 );
 

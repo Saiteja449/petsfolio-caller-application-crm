@@ -88,36 +88,46 @@ export const CallProvider = ({ children }) => {
     fetchCallLogs();
 
     if (Platform.OS === 'android') {
+      const handleCallStateChange = (event) => {
+        const { state, phoneNumber } = event;
+
+        if (state === 'RINGING') {
+          setIncomingCall({
+            id: `incoming-${Date.now()}`,
+            customerName: 'Unknown',
+            phoneNumber: phoneNumber,
+            callType: 'incoming',
+            status: 'ringing',
+            date: new Date().toISOString(),
+          });
+        } else if (state === 'ACTIVE' || state === 'DIALING') {
+          setIncomingCall(null);
+          setActiveCall({
+            id: `call-${Date.now()}`,
+            customerName: 'Unknown',
+            phoneNumber: phoneNumber,
+            callType: state === 'DIALING' ? 'outgoing' : 'incoming',
+            status: state.toLowerCase(),
+            date: new Date().toISOString(),
+          });
+        } else if (state === 'DISCONNECTED') {
+          setIncomingCall(null);
+          setActiveCall(null);
+          setTimeout(fetchCallLogs, 1500); // refresh logs after call ends
+        }
+      };
+
+      import('../utils/DefaultDialer').then(({ getCurrentCall }) => {
+        getCurrentCall().then((stateObj) => {
+          if (stateObj && stateObj.state && stateObj.state !== 'DISCONNECTED') {
+            handleCallStateChange(stateObj);
+          }
+        });
+      });
+
       const subscription = dialerEmitter.addListener(
         'onCallStateChanged',
-        event => {
-          const { state, phoneNumber } = event;
-
-          if (state === 'RINGING') {
-            setIncomingCall({
-              id: `incoming-${Date.now()}`,
-              customerName: 'Unknown',
-              phoneNumber: phoneNumber,
-              callType: 'incoming',
-              status: 'ringing',
-              date: new Date().toISOString(),
-            });
-          } else if (state === 'ACTIVE' || state === 'DIALING') {
-            setIncomingCall(null);
-            setActiveCall({
-              id: `call-${Date.now()}`,
-              customerName: 'Unknown',
-              phoneNumber: phoneNumber,
-              callType: state === 'DIALING' ? 'outgoing' : 'incoming',
-              status: state.toLowerCase(),
-              date: new Date().toISOString(),
-            });
-          } else if (state === 'DISCONNECTED') {
-            setIncomingCall(null);
-            setActiveCall(null);
-            setTimeout(fetchCallLogs, 1500); // refresh logs after call ends
-          }
-        },
+        handleCallStateChange
       );
       return () => subscription.remove();
     }

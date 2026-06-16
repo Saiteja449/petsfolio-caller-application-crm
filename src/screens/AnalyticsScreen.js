@@ -52,66 +52,6 @@ const AnalyticsScreen = () => {
       <ScreenHeader title="Call Analytics" subtitle="Performance Dashboard" />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <AnalyticsCard title="Overview" subtitle="All-time statistics">
-          <View style={styles.statGrid}>
-            <StatCard
-              label="Total Calls"
-              value={overview.totalCalls}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Incoming"
-              value={overview.incomingCalls}
-              color={Colors.primary}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Outgoing"
-              value={overview.outgoingCalls}
-              color={Colors.success}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Missed"
-              value={overview.missedCalls}
-              color={Colors.danger}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Connected"
-              value={overview.connectedCalls}
-              color={Colors.success}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Rejected"
-              value={overview.rejectedCalls}
-              color={Colors.warning}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Not Connected"
-              value={overview.notConnectedCalls}
-              color={Colors.textMuted}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Talk Time"
-              value={formatTalkTime(overview.totalTalkTime)}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Avg Duration"
-              value={formatDuration(overview.averageDuration)}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Longest Call"
-              value={formatDuration(overview.longestDuration)}
-              style={styles.statItem}
-            />
-          </View>
-        </AnalyticsCard>
 
         <AnalyticsCard title="Today" subtitle="Today's activity">
           <View style={styles.statGrid}>
@@ -141,62 +81,64 @@ const AnalyticsScreen = () => {
         </AnalyticsCard>
 
         <AnalyticsCard
-          title="Weekly Summary"
-          subtitle="This week's performance"
+          title="Last 5 Days Summary"
+          subtitle="Recent performance"
         >
           <View style={styles.statGrid}>
             <StatCard
-              label="Calls This Week"
-              value={weekly.callsThisWeek}
+              label="Total Calls"
+              value={weekly.totalCalls}
               style={styles.statItem}
             />
             <StatCard
-              label="Talk Time"
-              value={formatTalkTime(weekly.talkTime)}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Performance Score"
-              value={`${weekly.performanceScore}%`}
-              color={Colors.success}
-              icon={<TrendingUpIcon size={20} />}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Follow-ups Done"
-              value={weekly.followupsCompleted}
-              style={styles.statItem}
-            />
-          </View>
-        </AnalyticsCard>
-
-        <AnalyticsCard title="Monthly Summary" subtitle="Last 30 days">
-          <View style={styles.statGrid}>
-            <StatCard
-              label="Call Volume"
-              value={monthly.callVolume}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Talk Time"
-              value={formatTalkTime(monthly.talkTime)}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Avg Duration"
-              value={formatDuration(monthly.averageDuration)}
-              style={styles.statItem}
-            />
-            <StatCard
-              label="Response Rate"
-              value={`${monthly.responseRate}%`}
+              label="Incoming"
+              value={weekly.incomingCalls}
               color={Colors.primary}
               style={styles.statItem}
             />
             <StatCard
-              label="Connection Rate"
-              value={`${monthly.connectionRate}%`}
+              label="Outgoing"
+              value={weekly.outgoingCalls}
               color={Colors.success}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Missed"
+              value={weekly.missedCalls}
+              color={Colors.danger}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Connected"
+              value={weekly.connectedCalls}
+              color={Colors.success}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Rejected"
+              value={weekly.rejectedCalls}
+              color={Colors.warning}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Not Connected"
+              value={weekly.notConnectedCalls}
+              color={Colors.textMuted}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Talk Time"
+              value={formatTalkTime(weekly.totalTalkTime)}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Avg Duration"
+              value={formatDuration(weekly.averageDuration)}
+              style={styles.statItem}
+            />
+            <StatCard
+              label="Longest Call"
+              value={formatDuration(weekly.longestDuration)}
               style={styles.statItem}
             />
           </View>
@@ -232,41 +174,6 @@ const AnalyticsScreen = () => {
               label="Not Connected"
               value={callTypeBreakdown.notConnected}
               maxValue={maxCallType}
-              color={Colors.chart5}
-            />
-          </View>
-        </AnalyticsCard>
-
-        <AnalyticsCard title="Call Duration Analytics">
-          <View style={styles.chartPlaceholder}>
-            <ChartBar
-              label="0-30 seconds"
-              value={durationBreakdown['0-30s']}
-              maxValue={maxDuration}
-              color={Colors.chart1}
-            />
-            <ChartBar
-              label="30-60 seconds"
-              value={durationBreakdown['30-60s']}
-              maxValue={maxDuration}
-              color={Colors.chart2}
-            />
-            <ChartBar
-              label="1-3 minutes"
-              value={durationBreakdown['1-3min']}
-              maxValue={maxDuration}
-              color={Colors.chart3}
-            />
-            <ChartBar
-              label="3-5 minutes"
-              value={durationBreakdown['3-5min']}
-              maxValue={maxDuration}
-              color={Colors.chart4}
-            />
-            <ChartBar
-              label="5+ minutes"
-              value={durationBreakdown['5min+']}
-              maxValue={maxDuration}
               color={Colors.chart5}
             />
           </View>

@@ -1,6 +1,12 @@
 import Text from '../components/AppText';
 import React from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CustomButton from '../components/CustomButton';
@@ -23,6 +29,7 @@ import {
   formatTime,
   formatDuration,
   getInitials,
+  getCallTypeColor,
 } from '../utils/formatters';
 import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
 import { makeCall } from '../utils/DefaultDialer';

@@ -1,6 +1,6 @@
 import Text from '../components/AppText';
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useCalls } from '../context/CallContext';
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
@@ -8,7 +8,7 @@ import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 import { RejectIcon } from '../icons/Icons';
 import { getInitials, formatPhone } from '../utils/formatters';
-import { endCall } from '../utils/DefaultDialer';
+import { endCall, setMute, setSpeaker } from '../utils/DefaultDialer';
 
 // Simple fallback icons for in-call actions since we might not have them all
 const CircleButton = ({ label, iconText, active, onPress, color }) => (
@@ -34,21 +34,37 @@ const ActiveCallScreen = () => {
   const { activeCall } = useCalls();
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaker, setIsSpeaker] = useState(false);
-  const [isRecording, setIsRecording] = useState(true);
+  const [callDuration, setCallDuration] = useState(0);
 
-  const callData = activeCall || {
-    customerName: 'Test Caller',
-    phoneNumber: '+1 234 567 8900',
-    status: 'connected',
-  };
+  useEffect(() => {
+    let interval;
+    if (activeCall?.status === 'active') {
+      interval = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [activeCall?.status]);
+
+  if (!activeCall) return null;
+  const callData = activeCall;
 
   const handleEndCall = () => {
     endCall();
   };
 
+  const formatDuration = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   return (
-    <View style={styles.overlay}>
-      <View style={styles.topSection}>
+    <Modal visible={true} transparent={true} animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.topSection}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {getInitials(callData.customerName || callData.phoneNumber)}
@@ -57,7 +73,7 @@ const ActiveCallScreen = () => {
         <Text style={styles.name}>{callData.customerName}</Text>
         <Text style={styles.phone}>{formatPhone(callData.phoneNumber)}</Text>
         <Text style={styles.status}>
-          {callData.status === 'dialing' ? 'Dialing...' : '00:00'}
+          {callData.status === 'dialing' ? 'Dialing...' : callData.status === 'active' ? formatDuration(callDuration) : 'Connecting...'}
         </Text>
       </View>
 
@@ -67,20 +83,26 @@ const ActiveCallScreen = () => {
             label="Mute"
             iconText="M"
             active={isMuted}
-            onPress={() => setIsMuted(!isMuted)}
+            onPress={() => {
+              setMute(!isMuted);
+              setIsMuted(!isMuted);
+            }}
           />
           <CircleButton
             label="Speaker"
             iconText="S"
             active={isSpeaker}
-            onPress={() => setIsSpeaker(!isSpeaker)}
+            onPress={() => {
+              setSpeaker(!isSpeaker);
+              setIsSpeaker(!isSpeaker);
+            }}
           />
-          <CircleButton
+          {/* <CircleButton
             label="Record"
             iconText="R"
             active={isRecording}
             onPress={() => setIsRecording(!isRecording)}
-          />
+          /> */}
         </View>
 
         <TouchableOpacity style={styles.endCallWrap} onPress={handleEndCall}>
@@ -89,7 +111,8 @@ const ActiveCallScreen = () => {
           </View>
         </TouchableOpacity>
       </View>
-    </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -97,11 +120,12 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#1E293B', // Dark Truecaller style background
-    zIndex: 1000,
+    zIndex: 9999,
+    elevation: 9999,
     justifyContent: 'space-between',
     paddingTop: 80,
     paddingBottom: 50,
-    flex: 1,
+    flex:1
   },
   topSection: {
     alignItems: 'center',
