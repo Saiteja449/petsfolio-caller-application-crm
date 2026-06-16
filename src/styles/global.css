@@ -1,0 +1,21 @@
+/**
+ * Sales Caller Pro — Global Design System
+ * All visual tokens and shared style definitions.
+ */
+
+:root {
+  --color-primary: #2563EB;
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-danger: #DC2626;
+  --color-background: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-text: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-border: #E2E8F0;
+  --radius-md: 16px;
+  --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.06);
+}
+
+.screen-container { flex: 1; background-color: var(--color-background); }
+.card { background-color: var(--color-card); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
