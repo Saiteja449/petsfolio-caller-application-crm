@@ -31,7 +31,7 @@ export const CallProvider = ({ children }) => {
         );
         if (permission) {
           try {
-            const logs = await CallLogs.load(100); // load last 100 calls
+            const logs = await CallLogs.load(1000); // load last 1000 calls
             const formattedLogs = logs.map(log => {
               let callType = 'unknown';
               let status = 'completed';
@@ -88,7 +88,7 @@ export const CallProvider = ({ children }) => {
     fetchCallLogs();
 
     if (Platform.OS === 'android') {
-      const handleCallStateChange = (event) => {
+      const handleCallStateChange = event => {
         const { state, phoneNumber } = event;
 
         if (state === 'RINGING') {
@@ -118,7 +118,7 @@ export const CallProvider = ({ children }) => {
       };
 
       import('../utils/DefaultDialer').then(({ getCurrentCall }) => {
-        getCurrentCall().then((stateObj) => {
+        getCurrentCall().then(stateObj => {
           if (stateObj && stateObj.state && stateObj.state !== 'DISCONNECTED') {
             handleCallStateChange(stateObj);
           }
@@ -127,7 +127,7 @@ export const CallProvider = ({ children }) => {
 
       const subscription = dialerEmitter.addListener(
         'onCallStateChanged',
-        handleCallStateChange
+        handleCallStateChange,
       );
       return () => subscription.remove();
     }
@@ -144,15 +144,19 @@ export const CallProvider = ({ children }) => {
   }, []);
 
   const getFilteredCalls = useCallback(
-    (filter) => {
+    filter => {
       if (filter === 'all') return callLogs;
       if (filter === 'incoming') {
-        return callLogs.filter((c) => c.callType === 'incoming' && c.status === 'connected');
+        return callLogs.filter(
+          c => c.callType === 'incoming' && c.status === 'connected',
+        );
       }
       if (filter === 'outgoing') {
-        return callLogs.filter((c) => c.callType === 'outgoing' && c.status === 'connected');
+        return callLogs.filter(
+          c => c.callType === 'outgoing' && c.status === 'connected',
+        );
       }
-      return callLogs.filter((c) => c.callType === filter || c.status === filter);
+      return callLogs.filter(c => c.callType === filter || c.status === filter);
     },
     [callLogs],
   );

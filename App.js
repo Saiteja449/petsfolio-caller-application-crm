@@ -1,13 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View, PermissionsAndroid, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppProvider from './src/context/AppProvider';
 import AppNavigator from './src/navigation/AppNavigator';
+import SplashScreen from './src/screens/SplashScreen';
 import { requestDefaultDialer } from './src/utils/DefaultDialer';
 import { Colors } from './src/styles/Colors';
 
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
+  const [isAppReady, setIsAppReady] = useState(false);
 
   useEffect(() => {
     const requestPermissions = async () => {
@@ -35,10 +37,24 @@ const App = () => {
           console.warn(err);
         }
       }
+      
+      // Artificial delay to allow splash screen animation to play
+      setTimeout(() => {
+        setIsAppReady(true);
+      }, 1500);
     };
 
     requestPermissions();
   }, []);
+
+  if (!isAppReady) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+        <SplashScreen />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
