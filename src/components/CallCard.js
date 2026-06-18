@@ -37,6 +37,8 @@ const CallCard = ({
   onSMS,
   onViewDetails,
   showActions = true,
+  detailsLabel = 'Details',
+  DetailsIcon = InfoIcon,
 }) => {
   const typeColor = getCallTypeColor(call.callType);
 
@@ -86,8 +88,8 @@ const CallCard = ({
             <Text style={styles.actionText}>SMS</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={onViewDetails}>
-            <InfoIcon size={16} />
-            <Text style={styles.actionText}>Details</Text>
+            <DetailsIcon size={16} color={Colors.primary} />
+            <Text style={styles.actionText}>{detailsLabel}</Text>
           </TouchableOpacity>
         </View>
       )}

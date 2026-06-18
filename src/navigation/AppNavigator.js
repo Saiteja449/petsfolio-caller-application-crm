@@ -7,14 +7,16 @@ import { View, StyleSheet, Platform } from 'react-native';
 
 import CallLogsScreen from '../screens/CallLogsScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
-import MoreScreen from '../screens/MoreScreen';
+import LeadsScreen from '../screens/LeadsScreen';
 import CallDetailsScreen from '../screens/CallDetailsScreen';
+import LoginScreen from '../screens/LoginScreen';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ActiveCallScreen from '../screens/ActiveCallScreen';
+import { useAuth } from '../context/AuthContext';
 
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
-import { HistoryIcon, AnalyticsIcon, MoreIcon } from '../icons/Icons';
+import { HistoryIcon, AnalyticsIcon, ContactsIcon } from '../icons/Icons';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -36,6 +38,24 @@ const TabNavigator = () => (
       tabBarShowLabel: false,
     }}
   >
+    <Tab.Screen
+      name="Leads"
+      component={LeadsScreen}
+      options={{
+        tabBarIcon: ({ focused }) => (
+          <TabIcon
+            icon={
+              <ContactsIcon
+                size={22}
+                color={focused ? Colors.primary : Colors.tabInactive}
+              />
+            }
+            label="Leads"
+            focused={focused}
+          />
+        ),
+      }}
+    />
     <Tab.Screen
       name="Calls"
       component={CallLogsScreen}
@@ -72,41 +92,35 @@ const TabNavigator = () => (
         ),
       }}
     />
-    <Tab.Screen
-      name="More"
-      component={MoreScreen}
-      options={{
-        tabBarIcon: ({ focused }) => (
-          <TabIcon
-            icon={
-              <MoreIcon
-                size={22}
-                color={focused ? Colors.primary : Colors.tabInactive}
-              />
-            }
-            label="More"
-            focused={focused}
-          />
-        ),
-      }}
-    />
   </Tab.Navigator>
 );
 
-const AppNavigator = () => (
-  <View style={styles.root}>
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {/* <Stack.Screen name="IncomingCall" component={IncomingCallScreen} /> */}
-        {/* <Stack.Screen name="ActiveCall" component={ActiveCallScreen} /> */}
-        <Stack.Screen name="Main" component={TabNavigator} />
-        <Stack.Screen name="CallDetails" component={CallDetailsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
-    <IncomingCallScreen />
-    <ActiveCallScreen />
-  </View>
-);
+const AppNavigator = () => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <View style={styles.root}>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {isAuthenticated ? (
+            <>
+              <Stack.Screen name="Main" component={TabNavigator} />
+              <Stack.Screen name="CallDetails" component={CallDetailsScreen} />
+            </>
+          ) : (
+            <Stack.Screen name="Login" component={LoginScreen} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+      {isAuthenticated && (
+        <>
+          <IncomingCallScreen />
+          <ActiveCallScreen />
+        </>
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   root: {

@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
 import CallCard from '../components/CallCard';
-import SearchBar from '../components/SearchBar';
 import EmptyState from '../components/EmptyState';
 import DialerModal from '../components/DialerModal';
 import { useCalls } from '../context/CallContext';
@@ -194,7 +194,6 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.huge,
   },
-
   fab: {
     position: 'absolute',
     bottom: Spacing.lg,

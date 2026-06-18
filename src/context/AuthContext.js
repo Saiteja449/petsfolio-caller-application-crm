@@ -12,7 +12,16 @@ export const AuthProvider = ({ children }) => {
     email: 'agent@company.com',
     photo: 'https://i.pravatar.cc/150?img=11',
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const login = (email) => {
+    setIsAuthenticated(true);
+    setUser((prev) => ({ ...prev, email }));
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+  };
 
   const updateProfile = (updates) => {
     setUser((prev) => ({ ...prev, ...updates }));
@@ -23,6 +32,8 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         isAuthenticated,
+        login,
+        logout,
         updateProfile,
       }}
     >
