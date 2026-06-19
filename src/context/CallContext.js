@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react';
 import CallLogs from 'react-native-call-log';
 import {
@@ -12,6 +13,8 @@ import {
   NativeEventEmitter,
   NativeModules,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLeads } from './LeadsContext';
 
 const { DefaultDialer } = NativeModules;
 const dialerEmitter = new NativeEventEmitter(DefaultDialer);
@@ -22,6 +25,158 @@ export const CallProvider = ({ children }) => {
   const [callLogs, setCallLogs] = useState([]);
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
+
+  const { leads, hasFetched, createLead, updateLead } = useLeads();
+  const leadsRef = useRef(leads);
+
+  useEffect(() => {
+    leadsRef.current = leads;
+  }, [leads]);
+
+  const updateLeadRef = useRef(updateLead);
+  useEffect(() => {
+    updateLeadRef.current = updateLead;
+  }, [updateLead]);
+
+  const findLeadNameByPhone = useCallback(phoneStr => {
+    const currentLeads = leadsRef.current;
+    if (!phoneStr || !currentLeads) return null;
+    const normalize = p => String(p).replace(/\D/g, '');
+    const searchPhone = normalize(phoneStr);
+
+    if (!searchPhone) return null;
+
+    const exactMatch = currentLeads.find(l => l.phone === phoneStr);
+    if (exactMatch) return exactMatch.name;
+
+    const match = currentLeads.find(l => {
+      const p = normalize(l.phone);
+      return (
+        p &&
+        p.length > 5 &&
+        (p.includes(searchPhone) || searchPhone.includes(p))
+      );
+    });
+    return match ? match.name : null;
+  }, []);
+
+  const createLeadRef = useRef(createLead);
+  useEffect(() => {
+    createLeadRef.current = createLead;
+  }, [createLead]);
+
+  const syncNewCallsToCRM = useCallback(async () => {
+    if (!hasFetched || callLogs.length === 0) return;
+
+    try {
+      const lastStr = await AsyncStorage.getItem('lastProcessedCallTimestamp');
+      const lastProcessed = lastStr
+        ? parseInt(lastStr)
+        : Date.now() - 24 * 60 * 60 * 1000;
+      let maxTimestamp = lastProcessed;
+
+      for (const log of callLogs) {
+        const logTimestamp = new Date(log.date).getTime();
+        if (logTimestamp > lastProcessed) {
+          if (logTimestamp > maxTimestamp) maxTimestamp = logTimestamp;
+
+          const isUnanswered = ['missed', 'rejected', 'not-connected'].includes(
+            log.status,
+          );
+
+          const normalize = p => String(p).replace(/\D/g, '');
+          const searchPhone = normalize(log.phoneNumber);
+          const existingLead = leadsRef.current?.find(l => {
+            const p = normalize(l.phone);
+            return (
+              p &&
+              searchPhone &&
+              p.length > 5 &&
+              (p.includes(searchPhone) || searchPhone.includes(p))
+            );
+          });
+
+          if (!existingLead) {
+            if (log.callType === 'incoming' || log.callType === 'missed') {
+              if (createLeadRef.current) {
+                createLeadRef.current({
+                  name:
+                    log.customerName === 'Unknown'
+                      ? 'Unknown Caller'
+                      : log.customerName,
+                  phone: log.phoneNumber,
+                  source: 'Call',
+                  service: 'Unknown',
+                  status: isUnanswered ? 'Not Attended' : 'New',
+                });
+              }
+            }
+          } else {
+            if (isUnanswered && existingLead.status !== 'Not Attended') {
+              if (updateLeadRef.current) {
+                updateLeadRef.current(existingLead.id, {
+                  name: existingLead.name,
+                  phone: existingLead.phone,
+                  service: existingLead.service,
+                  nextFollowUp: existingLead.nextFollowUp,
+                  status: 'Not Attended',
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (maxTimestamp > lastProcessed) {
+        await AsyncStorage.setItem(
+          'lastProcessedCallTimestamp',
+          maxTimestamp.toString(),
+        );
+      }
+    } catch (err) {
+      console.error('Sync new calls error', err);
+    }
+  }, [hasFetched, callLogs]);
+
+  useEffect(() => {
+    syncNewCallsToCRM();
+  }, [syncNewCallsToCRM]);
+
+  // Update existing logs/calls when leads change
+  useEffect(() => {
+    if (leads && leads.length > 0) {
+      setCallLogs(prevLogs => {
+        let changed = false;
+        const updatedLogs = prevLogs.map(log => {
+          const leadName = findLeadNameByPhone(log.phoneNumber);
+          if (leadName && log.customerName !== leadName) {
+            changed = true;
+            return { ...log, customerName: leadName };
+          }
+          return log;
+        });
+        return changed ? updatedLogs : prevLogs;
+      });
+
+      setActiveCall(prev => {
+        if (!prev) return prev;
+        const leadName = findLeadNameByPhone(prev.phoneNumber);
+        if (leadName && prev.customerName !== leadName) {
+          return { ...prev, customerName: leadName };
+        }
+        return prev;
+      });
+
+      setIncomingCall(prev => {
+        if (!prev) return prev;
+        const leadName = findLeadNameByPhone(prev.phoneNumber);
+        if (leadName && prev.customerName !== leadName) {
+          return { ...prev, customerName: leadName };
+        }
+        return prev;
+      });
+    }
+  }, [leads, findLeadNameByPhone]);
 
   useEffect(() => {
     const fetchCallLogs = async () => {
@@ -66,10 +221,13 @@ export const CallProvider = ({ children }) => {
                   callType = 'incoming';
               }
 
+              const resolvedName =
+                findLeadNameByPhone(log.phoneNumber) || 'Unknown';
+
               return {
                 id: `call-${log.timestamp}`,
                 contactId: null, // would need cross-referencing with contacts
-                customerName: log.name || 'Unknown',
+                customerName: resolvedName,
                 phoneNumber: log.phoneNumber,
                 callType: callType,
                 status: status,
@@ -90,11 +248,12 @@ export const CallProvider = ({ children }) => {
     if (Platform.OS === 'android') {
       const handleCallStateChange = event => {
         const { state, phoneNumber } = event;
+        const resolvedName = findLeadNameByPhone(phoneNumber) || 'Unknown';
 
         if (state === 'RINGING') {
           setIncomingCall({
             id: `incoming-${Date.now()}`,
-            customerName: 'Unknown',
+            customerName: resolvedName,
             phoneNumber: phoneNumber,
             callType: 'incoming',
             status: 'ringing',
@@ -104,7 +263,7 @@ export const CallProvider = ({ children }) => {
           setIncomingCall(null);
           setActiveCall({
             id: `call-${Date.now()}`,
-            customerName: 'Unknown',
+            customerName: resolvedName,
             phoneNumber: phoneNumber,
             callType: state === 'DIALING' ? 'outgoing' : 'incoming',
             status: state.toLowerCase(),

@@ -7,15 +7,15 @@ import { LeadsProvider } from './LeadsContext';
 
 export const AppProvider = ({ children }) => (
   <AuthProvider>
-    <CallProvider>
-      <AnalyticsProvider>
-        <ContactProvider>
-          <LeadsProvider>
+    <LeadsProvider>
+      <CallProvider>
+        <AnalyticsProvider>
+          <ContactProvider>
             {children}
-          </LeadsProvider>
-        </ContactProvider>
-      </AnalyticsProvider>
-    </CallProvider>
+          </ContactProvider>
+        </AnalyticsProvider>
+      </CallProvider>
+    </LeadsProvider>
   </AuthProvider>
 );
 

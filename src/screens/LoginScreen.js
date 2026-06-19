@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
 import Text from '../components/AppText';
 import CustomButton from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
@@ -9,42 +16,55 @@ import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 
 const LoginScreen = () => {
-  const { login } = useAuth();
+  const { login, sendOtp } = useAuth();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!email || !email.includes('@')) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
     setIsLoading(true);
-    // Simulate API call to send OTP
-    setTimeout(() => {
-      setIsLoading(false);
+    const result = await sendOtp(email);
+    setIsLoading(false);
+
+    if (result.success) {
       setIsOtpSent(true);
-      Alert.alert('OTP Sent', 'An OTP has been sent to your email.');
-    }, 1500);
+      Alert.alert(
+        'OTP Sent',
+        result.message || 'An OTP has been sent to your email.',
+      );
+    } else {
+      Alert.alert(
+        'Error',
+        result.message || 'Failed to send OTP. Please check your email.',
+      );
+    }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!otp || otp.length < 4) {
       Alert.alert('Invalid OTP', 'Please enter a valid OTP.');
       return;
     }
     setIsLoading(true);
-    // Simulate API call to verify OTP
-    setTimeout(() => {
-      setIsLoading(false);
-      login(email);
-    }, 1500);
+    const result = await login(email, otp);
+    setIsLoading(false);
+
+    if (!result.success) {
+      Alert.alert(
+        'Login Failed',
+        result.message || 'Invalid OTP. Please try again.',
+      );
+    }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
@@ -65,11 +85,11 @@ const LoginScreen = () => {
               value={email}
               onChangeText={setEmail}
             />
-            <CustomButton 
-              title={isLoading ? "Sending..." : "Send OTP"} 
-              onPress={handleSendOtp} 
+            <CustomButton
+              title={isLoading ? 'Sending...' : 'Send OTP'}
+              onPress={handleSendOtp}
               disabled={isLoading}
-              style={styles.button} 
+              style={styles.button}
             />
           </>
         ) : (
@@ -84,18 +104,18 @@ const LoginScreen = () => {
               onChangeText={setOtp}
               maxLength={6}
             />
-            <CustomButton 
-              title={isLoading ? "Verifying..." : "Login"} 
-              onPress={handleLogin} 
+            <CustomButton
+              title={isLoading ? 'Verifying...' : 'Login'}
+              onPress={handleLogin}
               disabled={isLoading}
-              style={styles.button} 
+              style={styles.button}
             />
-            <CustomButton 
-              title="Back to Email" 
+            <CustomButton
+              title="Back to Email"
               variant="outline"
-              onPress={() => setIsOtpSent(false)} 
+              onPress={() => setIsOtpSent(false)}
               disabled={isLoading}
-              style={styles.backButton} 
+              style={styles.backButton}
             />
           </>
         )}
@@ -158,7 +178,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: Spacing.md,
-  }
+  },
 });
 
 export default LoginScreen;

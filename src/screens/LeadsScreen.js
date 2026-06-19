@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
-import CallCard from '../components/CallCard';
+import ContactCard from '../components/ContactCard';
 import SearchBar from '../components/SearchBar';
 import EmptyState from '../components/EmptyState';
 import { useLeads } from '../context/LeadsContext';
@@ -21,7 +21,12 @@ import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 import { Shadows } from '../styles/Shadows';
-import { HistoryIcon, SettingsIcon, ChevronRightIcon, DialPadIcon } from '../icons/Icons';
+import {
+  HistoryIcon,
+  SettingsIcon,
+  ChevronRightIcon,
+  DialPadIcon,
+} from '../icons/Icons';
 import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
 import { makeCall } from '../utils/DefaultDialer';
 import DialerModal from '../components/DialerModal';
@@ -41,7 +46,6 @@ const STATUS_OPTIONS = [
   'New',
   'Follow Up',
   'Not Attended',
-  'Not Responding',
   'Not Answered',
   'Price Issue',
   'Joined',
@@ -54,10 +58,10 @@ const SERVICE_OPTIONS = [
   'Walking',
   'Training',
   'Sitting',
-  'Veterinary',
+  'Insurance',
 ];
 
-const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting'];
+const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
 const LeadsScreen = () => {
   const navigation = useNavigation();
@@ -76,6 +80,7 @@ const LeadsScreen = () => {
     nextFollowUp: '',
     comments: '',
     followupType: '',
+    importantLead: false,
   });
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
@@ -103,14 +108,13 @@ const LeadsScreen = () => {
     if (activeTab === 'Joined') return s === 'joined';
     if (activeTab === 'Lost')
       return (
-        s === 'price issue' ||
-        s === 'not responding' ||
-        s === 'not answered' ||
-        s === 'not interested'
+        s === 'price issue' || s === 'not answered' || s === 'not interested'
       );
     if (activeTab === 'NotAttended')
       return (
-        s === 'not attended' || (s === 'follow up' && leadFollowUp < todayStr)
+        s === 'not attended' ||
+        s === 'not responding' ||
+        (s === 'follow up' && leadFollowUp < todayStr)
       );
 
     return true;
@@ -126,6 +130,7 @@ const LeadsScreen = () => {
       nextFollowUp: lead.nextFollowUp || '',
       comments: lead.comments || '',
       followupType: lead.followupType || 'Call',
+      importantLead: lead.importantLead || false,
     });
     setIsStatusOpen(false);
     setIsServiceOpen(false);
@@ -201,26 +206,15 @@ const LeadsScreen = () => {
             message="You have no assigned leads matching the criteria."
           />
         }
-        renderItem={({ item: lead }) => {
-          // Map lead fields to call object shape for CallCard
-          const mappedCall = {
-            id: lead.id,
-            customerName: lead.name,
-            phoneNumber: lead.phone,
-            callType: 'incoming', // Default type to render icon
-            status: lead.status, // Display actual lead status
-            date: lead.date,
-            duration: 0,
-          };
+        renderItem={({ item: lead, index }) => {
           return (
-            <CallCard
-              call={mappedCall}
-              onCallAgain={() => makeCall(lead.phone)}
+            <ContactCard
+              contact={lead}
+              index={index}
+              onCall={() => makeCall(lead.phone)}
               onWhatsApp={() => navigateToWhatsApp(lead.phone, lead.name)}
               onSMS={() => navigateToSMS(lead.phone, lead.name)}
-              onViewDetails={() => handleEditLead(lead)}
-              detailsLabel="Update Details"
-              DetailsIcon={SettingsIcon}
+              onEdit={() => handleEditLead(lead)}
             />
           );
         }}
@@ -233,175 +227,203 @@ const LeadsScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Details</Text>
-
-            <Text style={styles.inputLabel}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={editForm.name}
-              onChangeText={text => setEditForm({ ...editForm, name: text })}
-              placeholder="Lead Name"
-            />
-
-            <Text style={styles.inputLabel}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={editForm.phone}
-              onChangeText={text => setEditForm({ ...editForm, phone: text })}
-              placeholder="Phone Number"
-              keyboardType="phone-pad"
-            />
-
-            <Text style={styles.inputLabel}>Service Interest</Text>
-            <TouchableOpacity
-              style={styles.dropdownSelector}
-              onPress={() => setIsServiceOpen(!isServiceOpen)}
-            >
-              <Text style={styles.dropdownSelectorText}>
-                {editForm.service || 'Select Service'}
-              </Text>
-              <ChevronRightIcon size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
-            {isServiceOpen && (
-              <View style={styles.dropdownOptionsContainer}>
-                {SERVICE_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setEditForm({ ...editForm, service: opt });
-                      setIsServiceOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownOptionText,
-                        editForm.service === opt &&
-                          styles.dropdownOptionTextActive,
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            <Text style={styles.inputLabel}>Status</Text>
-            <TouchableOpacity
-              style={styles.dropdownSelector}
-              onPress={() => setIsStatusOpen(!isStatusOpen)}
-            >
-              <Text style={styles.dropdownSelectorText}>
-                {editForm.status || 'Select Status'}
-              </Text>
-              <ChevronRightIcon size={16} color={Colors.textMuted} />
-            </TouchableOpacity>
-            {isStatusOpen && (
-              <ScrollView
-                style={styles.dropdownOptionsContainerScroll}
-                nestedScrollEnabled={true}
-              >
-                {STATUS_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={styles.dropdownOption}
-                    onPress={() => {
-                      setEditForm({ ...editForm, status: opt });
-                      setIsStatusOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownOptionText,
-                        editForm.status === opt &&
-                          styles.dropdownOptionTextActive,
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-
-            {editForm.status === 'Follow Up' && (
-              <View style={styles.followUpContainer}>
-                <Text style={styles.inputLabel}>Follow-up Type</Text>
-                <TouchableOpacity
-                  style={styles.dropdownSelector}
-                  onPress={() => setIsFollowupTypeOpen(!isFollowupTypeOpen)}
-                >
-                  <Text style={styles.dropdownSelectorText}>
-                    {editForm.followupType || 'Select Type'}
-                  </Text>
-                  <ChevronRightIcon size={16} color={Colors.textMuted} />
-                </TouchableOpacity>
-                {isFollowupTypeOpen && (
-                  <View style={styles.dropdownOptionsContainer}>
-                    {FOLLOWUP_TYPES.map(opt => (
-                      <TouchableOpacity
-                        key={opt}
-                        style={styles.dropdownOption}
-                        onPress={() => {
-                          setEditForm({ ...editForm, followupType: opt });
-                          setIsFollowupTypeOpen(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dropdownOptionText,
-                            editForm.followupType === opt &&
-                              styles.dropdownOptionTextActive,
-                          ]}
-                        >
-                          {opt}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                <Text style={styles.inputLabel}>
-                  Next Follow Up Date (YYYY-MM-DD)
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.nextFollowUp}
-                  onChangeText={text =>
-                    setEditForm({ ...editForm, nextFollowUp: text })
-                  }
-                  placeholder="e.g. 2026-06-20"
-                />
-
-                <Text style={styles.inputLabel}>Comments</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={editForm.comments}
-                  onChangeText={text =>
-                    setEditForm({ ...editForm, comments: text })
-                  }
-                  placeholder="Enter your comments..."
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setEditModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveEdit}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Details</Text>
             </View>
+
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: Spacing.huge }}
+            >
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.name}
+                onChangeText={text => setEditForm({ ...editForm, name: text })}
+                placeholder="Lead Name"
+              />
+
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.phone}
+                onChangeText={text => setEditForm({ ...editForm, phone: text })}
+                placeholder="Phone Number"
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.inputLabel}>Service Interest</Text>
+              <TouchableOpacity
+                style={styles.dropdownSelector}
+                onPress={() => setIsServiceOpen(!isServiceOpen)}
+              >
+                <Text style={styles.dropdownSelectorText}>
+                  {editForm.service || 'Select Service'}
+                </Text>
+                <ChevronRightIcon size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+              {isServiceOpen && (
+                <View style={styles.dropdownOptionsContainer}>
+                  {SERVICE_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setEditForm({ ...editForm, service: opt });
+                        setIsServiceOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          editForm.service === opt &&
+                            styles.dropdownOptionTextActive,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.inputLabel}>Status</Text>
+              <TouchableOpacity
+                style={styles.dropdownSelector}
+                onPress={() => setIsStatusOpen(!isStatusOpen)}
+              >
+                <Text style={styles.dropdownSelectorText}>
+                  {editForm.status || 'Select Status'}
+                </Text>
+                <ChevronRightIcon size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+              {isStatusOpen && (
+                <ScrollView
+                  style={styles.dropdownOptionsContainerScroll}
+                  nestedScrollEnabled={true}
+                >
+                  {STATUS_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setEditForm({ ...editForm, status: opt });
+                        setIsStatusOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          editForm.status === opt &&
+                            styles.dropdownOptionTextActive,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              {editForm.status === 'Follow Up' && (
+                <View style={styles.followUpContainer}>
+                  <Text style={styles.inputLabel}>Follow-up Type</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsFollowupTypeOpen(!isFollowupTypeOpen)}
+                  >
+                    <Text style={styles.dropdownSelectorText}>
+                      {editForm.followupType || 'Select Type'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  {isFollowupTypeOpen && (
+                    <View style={styles.dropdownOptionsContainer}>
+                      {FOLLOWUP_TYPES.map(opt => (
+                        <TouchableOpacity
+                          key={opt}
+                          style={styles.dropdownOption}
+                          onPress={() => {
+                            setEditForm({ ...editForm, followupType: opt });
+                            setIsFollowupTypeOpen(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              editForm.followupType === opt &&
+                                styles.dropdownOptionTextActive,
+                            ]}
+                          >
+                            {opt}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={styles.inputLabel}>
+                    Next Follow Up Date (YYYY-MM-DD)
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editForm.nextFollowUp}
+                    onChangeText={text =>
+                      setEditForm({ ...editForm, nextFollowUp: text })
+                    }
+                    placeholder="e.g. 2026-06-20"
+                  />
+
+                  <Text style={styles.inputLabel}>Comments</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={editForm.comments}
+                    onChangeText={text =>
+                      setEditForm({ ...editForm, comments: text })
+                    }
+                    placeholder="Enter your comments..."
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.importantToggle}
+                activeOpacity={0.8}
+                onPress={() =>
+                  setEditForm({
+                    ...editForm,
+                    importantLead: !editForm.importantLead,
+                  })
+                }
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    editForm.importantLead && styles.checkboxActive,
+                  ]}
+                />
+                <Text style={styles.importantToggleText}>
+                  🔥 Important Hot Lead
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setEditModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveEdit}
+                >
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -465,14 +487,20 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: Spacing.lg,
+    justifyContent: 'flex-end', // Aligns modal to the bottom
   },
   modalContent: {
     backgroundColor: Colors.card,
-    borderRadius: Theme.borderRadius,
-    padding: Spacing.xl,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '80%', // Exactly 80% of screen height
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
     ...Shadows.card,
+  },
+  modalHeader: {
+    marginBottom: Spacing.lg,
   },
   modalTitle: {
     fontSize: Fonts.sizes.lg,
@@ -594,6 +622,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
+  },
+  importantToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    borderRadius: 6,
+    marginRight: Spacing.md,
+    backgroundColor: Colors.card,
+  },
+  checkboxActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  importantToggleText: {
+    fontSize: Fonts.sizes.md,
+    color: Colors.text,
+    fontFamily: Fonts.family.bold,
   },
 });
 

@@ -21,6 +21,7 @@ import { Spacing } from '../styles/Spacing';
 import { HistoryIcon, DialPadIcon } from '../icons/Icons';
 import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
 import { makeCall } from '../utils/DefaultDialer';
+import SearchBar from '../components/SearchBar';
 
 const TABS = [
   { key: 'all', label: 'All' },

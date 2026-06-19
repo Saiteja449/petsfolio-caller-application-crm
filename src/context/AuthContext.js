@@ -1,26 +1,88 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../utils/constants';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    id: 'emp_001',
-    name: 'Sales Agent',
-    designation: 'Sales Executive',
-    employeeId: 'EMP-001',
-    mobile: '+1 234 567 8900',
-    email: 'agent@company.com',
-    photo: 'https://i.pravatar.cc/150?img=11',
-  });
+  const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (email) => {
-    setIsAuthenticated(true);
-    setUser((prev) => ({ ...prev, email }));
+  // Check for saved session on app start
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const savedSession = await AsyncStorage.getItem('petsfolio_session_user');
+        if (savedSession) {
+          const parsedUser = JSON.parse(savedSession);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Failed to load session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadSession();
+  }, []);
+
+  const sendOtp = async (email) => {
+    try {
+      const response = await axios.post(API_ENDPOINTS.AUTH.SEND_OTP, { email });
+      return {
+        success: true,
+        message: response.data.message || 'OTP sent successfully',
+      };
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      const message = error.response?.data?.message || 'Network error connecting to server.';
+      return { success: false, message };
+    }
   };
 
-  const logout = () => {
+  const login = async (email, otp) => {
+    try {
+      const response = await axios.post(API_ENDPOINTS.AUTH.VERIFY_OTP, { email, otp });
+      const data = response.data;
+
+      const roleMap = {
+        'sales manager': 'Sales Manager',
+        'sales person': 'Sales Representative',
+        user: 'User',
+      };
+
+      const userWithToken = {
+        id: data._id,
+        name: data.name || email.split('@')[0],
+        email: data.email,
+        role: roleMap[data.role?.toLowerCase()] || data.role,
+        token: data.token,
+        avatar: data.name
+          ? data.name.substring(0, 2).toUpperCase()
+          : email.substring(0, 2).toUpperCase(),
+      };
+
+      setUser(userWithToken);
+      setIsAuthenticated(true);
+      await AsyncStorage.setItem('petsfolio_session_user', JSON.stringify(userWithToken));
+      await AsyncStorage.setItem('petsfolio_token', data.token);
+
+      return { success: true, user: userWithToken };
+    } catch (error) {
+      console.error('Login error:', error);
+      const message = error.response?.data?.message || 'Network error connecting to server.';
+      return { success: false, message };
+    }
+  };
+
+  const logout = async () => {
+    setUser(null);
     setIsAuthenticated(false);
+    await AsyncStorage.removeItem('petsfolio_session_user');
+    await AsyncStorage.removeItem('petsfolio_token');
   };
 
   const updateProfile = (updates) => {
@@ -32,6 +94,8 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         isAuthenticated,
+        isLoading,
+        sendOtp,
         login,
         logout,
         updateProfile,
