@@ -1,5 +1,5 @@
 import Text from '../components/AppText';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -9,6 +9,8 @@ import {
   ScrollView,
   Modal,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ScreenHeader from '../components/ScreenHeader';
@@ -65,8 +67,9 @@ const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
 const LeadsScreen = () => {
   const navigation = useNavigation();
-  const { getMyLeads, updateLead } = useLeads();
+  const { fetchPaginatedLeads, updateLead } = useLeads();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTab, setActiveTab] = useState('New');
   const [isDialerVisible, setIsDialerVisible] = useState(false);
 
@@ -86,39 +89,76 @@ const LeadsScreen = () => {
   const [isServiceOpen, setIsServiceOpen] = useState(false);
   const [isFollowupTypeOpen, setIsFollowupTypeOpen] = useState(false);
 
-  const myLeads = getMyLeads().filter(l => {
-    const matchesSearch =
-      !search ||
-      l.name.toLowerCase().includes(search.toLowerCase()) ||
-      l.phone.includes(search);
+  // Pagination states
+  const [leadsList, setLeadsList] = useState([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [tabCounts, setTabCounts] = useState({});
 
-    if (!matchesSearch) return false;
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
 
-    const s = (l.status || '').toLowerCase();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const leadFollowUp = l.nextFollowUp || '';
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [search]);
 
-    if (activeTab === 'New') return s === 'new';
-    if (activeTab === 'TodayFollowup')
-      return s === 'follow up' && leadFollowUp === todayStr;
-    if (activeTab === 'UpcomingFollowup')
-      return s === 'follow up' && leadFollowUp > todayStr;
-    if (activeTab === 'JobPosted') return s === 'job posted';
-    if (activeTab === 'Converted') return s === 'job assigned';
-    if (activeTab === 'Joined') return s === 'joined';
-    if (activeTab === 'Lost')
-      return (
-        s === 'price issue' || s === 'not answered' || s === 'not interested'
-      );
-    if (activeTab === 'NotAttended')
-      return (
-        s === 'not attended' ||
-        s === 'not responding' ||
-        (s === 'follow up' && leadFollowUp < todayStr)
-      );
+  // Fetch paginated leads function
+  const fetchLeadsData = async (
+    pageNumber,
+    shouldAppend = false,
+    isRefresh = false,
+  ) => {
+    if (pageNumber === 0) {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLeadsList([]);
+        setIsLoading(true);
+      }
+    } else {
+      setIsLoadingMore(true);
+    }
 
-    return true;
-  });
+    try {
+      const data = await fetchPaginatedLeads({
+        page: pageNumber,
+        limit: 10,
+        search: debouncedSearch,
+        leadTypeTab: activeTab,
+      });
+
+      if (data) {
+        if (shouldAppend) {
+          setLeadsList(prev => [...prev, ...data.leads]);
+        } else {
+          setLeadsList(data.leads);
+        }
+        setTotalPages(data.totalPages || 0);
+        setTotalCount(data.totalCount || 0);
+        setTabCounts(data.tabCounts || {});
+        setPage(pageNumber);
+      }
+    } catch (error) {
+      console.error('Error fetching leads data:', error);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Fetch leads on activeTab or search changes
+  useEffect(() => {
+    fetchLeadsData(0, false);
+  }, [activeTab, debouncedSearch]);
 
   const handleEditLead = lead => {
     setSelectedLead(lead);
@@ -138,9 +178,12 @@ const LeadsScreen = () => {
     setEditModalVisible(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (selectedLead) {
-      updateLead(selectedLead.id, editForm);
+      const res = await updateLead(selectedLead.id, editForm);
+      if (res.success) {
+        fetchLeadsData(0, false);
+      }
       setEditModalVisible(false);
       setSelectedLead(null);
     }
@@ -154,11 +197,38 @@ const LeadsScreen = () => {
     openSMS(phone);
   };
 
+  const handleLoadMore = () => {
+    if (isLoading || isLoadingMore || isRefreshing) return;
+    // Guard check properly: if there is only one lead (or none), it should not fetch on listend
+    if (leadsList.length <= 1) return;
+    if (page + 1 >= totalPages) return;
+
+    fetchLeadsData(page + 1, true);
+  };
+
+  const handleRefresh = () => {
+    fetchLeadsData(0, false, true);
+  };
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+      </View>
+    );
+  };
+
+  const getTabCount = tabKey => {
+    const count = tabCounts[tabKey];
+    return count !== undefined ? ` (${count})` : '';
+  };
+
   return (
     <View style={styles.container}>
       <ScreenHeader
         title="Assigned Leads"
-        subtitle={`${myLeads.length} leads to follow`}
+        subtitle={`${totalCount} leads to follow`}
       />
 
       <View style={styles.searchWrap}>
@@ -187,38 +257,58 @@ const LeadsScreen = () => {
               ]}
             >
               {tab.label}
+              {getTabCount(tab.key)}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        data={myLeads}
-        keyExtractor={item => item.id}
-        initialNumToRender={10}
-        windowSize={5}
-        ListEmptyComponent={
-          <EmptyState
-            icon={<HistoryIcon size={48} color={Colors.textMuted} />}
-            title="No leads found"
-            message="You have no assigned leads matching the criteria."
-          />
-        }
-        renderItem={({ item: lead, index }) => {
-          return (
-            <ContactCard
-              contact={lead}
-              index={index}
-              onCall={() => makeCall(lead.phone)}
-              onWhatsApp={() => navigateToWhatsApp(lead.phone, lead.name)}
-              onSMS={() => navigateToSMS(lead.phone, lead.name)}
-              onEdit={() => handleEditLead(lead)}
+      {isLoading && leadsList.length === 0 ? (
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          data={leadsList}
+          keyExtractor={item => item.id}
+          initialNumToRender={10}
+          windowSize={5}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={renderFooter}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
             />
-          );
-        }}
-      />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={<HistoryIcon size={48} color={Colors.textMuted} />}
+              title="No leads found"
+              message="You have no assigned leads matching the criteria."
+            />
+          }
+          renderItem={({ item: lead, index }) => {
+            return (
+              <ContactCard
+                contact={lead}
+                index={index}
+                onCall={() => makeCall(lead.phone)}
+                onWhatsApp={() => navigateToWhatsApp(lead.phone, lead.name)}
+                onSMS={() => navigateToSMS(lead.phone, lead.name)}
+                onEdit={() => handleEditLead(lead)}
+              />
+            );
+          }}
+        />
+      )}
 
       <Modal
         visible={editModalVisible}
@@ -231,7 +321,7 @@ const LeadsScreen = () => {
               <Text style={styles.modalTitle}>Update Details</Text>
             </View>
 
-            <ScrollView 
+            <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: Spacing.huge }}
             >
@@ -483,6 +573,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: Spacing.lg,
     paddingBottom: Spacing.huge,
+    flexGrow: 1,
   },
   modalOverlay: {
     flex: 1,

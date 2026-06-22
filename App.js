@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, StyleSheet, useColorScheme, View, PermissionsAndroid, Platform } from 'react-native';
+import {
+  StatusBar,
+  StyleSheet,
+  useColorScheme,
+  View,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppProvider from './src/context/AppProvider';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -20,10 +27,12 @@ const App = () => {
             PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
             PermissionsAndroid.PERMISSIONS.CALL_PHONE,
           ]);
-          
+
           if (
-            granted[PermissionsAndroid.PERMISSIONS.READ_CONTACTS] === PermissionsAndroid.RESULTS.GRANTED &&
-            granted[PermissionsAndroid.PERMISSIONS.READ_CALL_LOG] === PermissionsAndroid.RESULTS.GRANTED
+            granted[PermissionsAndroid.PERMISSIONS.READ_CONTACTS] ===
+              PermissionsAndroid.RESULTS.GRANTED &&
+            granted[PermissionsAndroid.PERMISSIONS.READ_CALL_LOG] ===
+              PermissionsAndroid.RESULTS.GRANTED
           ) {
             console.log('Permissions granted');
           } else {
@@ -32,12 +41,11 @@ const App = () => {
 
           // Request default dialer
           await requestDefaultDialer();
-
         } catch (err) {
           console.warn(err);
         }
       }
-      
+
       // Artificial delay to allow splash screen animation to play
       setTimeout(() => {
         setIsAppReady(true);
@@ -59,7 +67,10 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={Colors.card} />
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={Colors.card}
+        />
         <AppProvider>
           <AppNavigator />
         </AppProvider>

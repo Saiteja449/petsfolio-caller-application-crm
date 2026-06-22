@@ -178,6 +178,33 @@ export const LeadsProvider = ({ children }) => {
     }
   };
 
+  const fetchPaginatedLeads = async ({ page = 0, limit = 10, search = '', leadTypeTab = 'New' }) => {
+    if (!user) return { leads: [], totalCount: 0, totalPages: 0, tabCounts: {} };
+    try {
+      const config = {};
+      if (user.token) {
+        config.headers = {
+          Authorization: `Bearer ${user.token}`,
+        };
+      }
+      const response = await axios.get(`${API_ENDPOINTS.LEADS.BASE}/paginated`, {
+        params: {
+          page,
+          limit,
+          search,
+          leadTypeTab,
+          currentUserRole: user.role || '',
+          currentUserName: user.name || '',
+        },
+        ...config,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching paginated leads:', error);
+      return { leads: [], totalCount: 0, totalPages: 0, tabCounts: {} };
+    }
+  };
+
   return (
     <LeadsContext.Provider
       value={{
@@ -185,6 +212,7 @@ export const LeadsProvider = ({ children }) => {
         loading,
         hasFetched,
         fetchLeads,
+        fetchPaginatedLeads,
         getMyLeads,
         setLeads,
         updateLead,

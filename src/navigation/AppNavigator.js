@@ -12,6 +12,7 @@ import CallDetailsScreen from '../screens/CallDetailsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ActiveCallScreen from '../screens/ActiveCallScreen';
+import SplashScreen from '../screens/SplashScreen';
 import { useAuth } from '../context/AuthContext';
 
 import { Colors } from '../styles/Colors';
@@ -96,7 +97,11 @@ const TabNavigator = () => (
 );
 
 const AppNavigator = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <SplashScreen />;
+  }
 
   return (
     <View style={styles.root}>

@@ -7,12 +7,13 @@ import StatCard from '../components/StatCard';
 import AnalyticsCard from '../components/AnalyticsCard';
 import CustomButton from '../components/CustomButton';
 import { useAnalytics } from '../context/AnalyticsContext';
+import { useAuth } from '../context/AuthContext';
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 import { formatDuration, formatTalkTime } from '../utils/formatters';
-import { TrendingUpIcon } from '../icons/Icons';
+import { TrendingUpIcon, LogoutIcon } from '../icons/Icons';
 
 const ChartBar = ({ label, value, maxValue, color }) => {
   const width = maxValue > 0 ? (value / maxValue) * 100 : 0;
@@ -34,6 +35,7 @@ const ChartBar = ({ label, value, maxValue, color }) => {
 
 const AnalyticsScreen = () => {
   const navigation = useNavigation();
+  const { user, logout } = useAuth();
   const {
     overview,
     today,
@@ -52,6 +54,24 @@ const AnalyticsScreen = () => {
       <ScreenHeader title="Call Analytics" subtitle="Performance Dashboard" />
 
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.profileCard}>
+          <View style={styles.profileInfo}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{user?.avatar || 'U'}</Text>
+            </View>
+            <View>
+              <Text style={styles.userName}>{user?.name || 'User'}</Text>
+              <Text style={styles.userRole}>{user?.role || 'Role'}</Text>
+            </View>
+          </View>
+          <CustomButton
+            title="Logout"
+            onPress={logout}
+            variant="danger"
+            size="sm"
+            icon={<LogoutIcon size={16} color={Colors.white} />}
+          />
+        </View>
 
         <AnalyticsCard title="Today" subtitle="Today's activity">
           <View style={styles.statGrid}>
@@ -191,6 +211,48 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     paddingBottom: Spacing.huge,
+  },
+  profileCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Theme.borderRadius,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: Colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  profileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: Fonts.sizes.lg,
+    fontFamily: Fonts.family.bold,
+    color: Colors.primary,
+  },
+  userName: {
+    fontSize: Fonts.sizes.md,
+    fontFamily: Fonts.family.semiBold,
+    color: Colors.text,
+  },
+  userRole: {
+    fontSize: Fonts.sizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   perfBtn: {
     paddingHorizontal: Spacing.md,
