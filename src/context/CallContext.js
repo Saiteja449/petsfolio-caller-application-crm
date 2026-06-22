@@ -70,9 +70,16 @@ export const CallProvider = ({ children }) => {
 
     try {
       const lastStr = await AsyncStorage.getItem('lastProcessedCallTimestamp');
-      const lastProcessed = lastStr
-        ? parseInt(lastStr)
-        : Date.now() - 24 * 60 * 60 * 1000;
+      let lastProcessed;
+      if (lastStr) {
+        lastProcessed = parseInt(lastStr);
+      } else {
+        lastProcessed = Date.now();
+        await AsyncStorage.setItem(
+          'lastProcessedCallTimestamp',
+          lastProcessed.toString(),
+        );
+      }
       let maxTimestamp = lastProcessed;
 
       for (const log of callLogs) {
@@ -97,7 +104,7 @@ export const CallProvider = ({ children }) => {
           });
 
           if (!existingLead) {
-            if (log.callType === 'incoming' || log.callType === 'missed') {
+            if (log.callType === 'missed') {
               if (createLeadRef.current) {
                 createLeadRef.current({
                   name:
@@ -222,7 +229,7 @@ export const CallProvider = ({ children }) => {
               }
 
               const resolvedName =
-                findLeadNameByPhone(log.phoneNumber) || 'Unknown';
+                findLeadNameByPhone(log.phoneNumber) || log.name || 'Unknown';
 
               return {
                 id: `call-${log.timestamp}`,
@@ -247,8 +254,9 @@ export const CallProvider = ({ children }) => {
 
     if (Platform.OS === 'android') {
       const handleCallStateChange = event => {
-        const { state, phoneNumber } = event;
-        const resolvedName = findLeadNameByPhone(phoneNumber) || 'Unknown';
+        const { state, phoneNumber, name } = event;
+        const resolvedName =
+          findLeadNameByPhone(phoneNumber) || name || 'Unknown';
 
         if (state === 'RINGING') {
           setIncomingCall({
