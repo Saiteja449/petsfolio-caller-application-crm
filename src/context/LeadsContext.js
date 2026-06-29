@@ -22,7 +22,7 @@ export const LeadsProvider = ({ children }) => {
         };
       }
       const response = await axios.get(API_ENDPOINTS.LEADS.BASE, config);
-      setLeads(response.data);
+      setLeads(response.data.data || response.data);
       setHasFetched(true);
     } catch (error) {
       console.error('Error fetching leads:', error);
@@ -56,8 +56,17 @@ export const LeadsProvider = ({ children }) => {
       if (!existingLead) return { success: false, error: 'Lead not found' };
 
       // Optimistic UI Update - Instant visual feedback
-      const optimisticLead = { ...existingLead, ...updatedFields };
-      setLeads(prev => prev.map(lead => lead.id === id ? optimisticLead : lead));
+      const optimisticLead = {
+        ...existingLead,
+        ...updatedFields,
+        notes:
+          updatedFields.comments !== undefined
+            ? updatedFields.comments
+            : existingLead.notes,
+      };
+      setLeads(prev =>
+        prev.map(lead => (lead.id === id ? optimisticLead : lead)),
+      );
 
       // Update standard fields in background
       const leadUpdatePayload = {
@@ -66,6 +75,7 @@ export const LeadsProvider = ({ children }) => {
         status: updatedFields.status,
         service: updatedFields.service,
         nextFollowUp: updatedFields.nextFollowUp,
+        notes: updatedFields.comments,
       };
 
       if (updatedFields.importantLead !== undefined) {
@@ -75,8 +85,12 @@ export const LeadsProvider = ({ children }) => {
       // Fire and forget API calls
       (async () => {
         try {
-          const response = await axios.put(`${API_ENDPOINTS.LEADS.BASE}/${id}`, leadUpdatePayload, config);
-          const updatedLeadData = response.data;
+          const response = await axios.put(
+            `${API_ENDPOINTS.LEADS.BASE}/${id}`,
+            leadUpdatePayload,
+            config,
+          );
+          const updatedLeadData = response.data.data || response.data;
 
           const authorName = user?.name || 'Mobile App';
 
@@ -90,22 +104,41 @@ export const LeadsProvider = ({ children }) => {
                 date: updatedFields.nextFollowUp,
                 time: '11:00 AM',
                 priority: updatedFields.importantLead ? 'High' : 'Medium',
-                notes: updatedFields.comments || `Routine followup scheduled via ${updatedFields.followupType || 'Call'}`,
+                notes:
+                  updatedFields.comments ||
+                  `Routine followup scheduled via ${
+                    updatedFields.followupType || 'Call'
+                  }`,
                 author: authorName,
                 done: false,
               },
-              config
+              config,
             );
           } else {
             const changes = [];
-            if (updatedFields.assignedTo && updatedFields.assignedTo !== existingLead.assignedTo) {
-              changes.push(`assignee from "${existingLead.assignedTo}" to "${updatedFields.assignedTo}"`);
+            if (
+              updatedFields.assignedTo &&
+              updatedFields.assignedTo !== existingLead.assignedTo
+            ) {
+              changes.push(
+                `assignee from "${existingLead.assignedTo}" to "${updatedFields.assignedTo}"`,
+              );
             }
-            if (updatedFields.status && updatedFields.status !== existingLead.status) {
+            if (
+              updatedFields.status &&
+              updatedFields.status !== existingLead.status
+            ) {
               changes.push(`status to "${updatedFields.status}"`);
             }
-            if (updatedFields.importantLead !== undefined && updatedFields.importantLead !== existingLead.importantLead) {
-              changes.push(updatedFields.importantLead ? 'marked as Important Hot Lead' : 'removed Important Hot Lead status');
+            if (
+              updatedFields.importantLead !== undefined &&
+              updatedFields.importantLead !== existingLead.importantLead
+            ) {
+              changes.push(
+                updatedFields.importantLead
+                  ? 'marked as Important Hot Lead'
+                  : 'removed Important Hot Lead status',
+              );
             }
 
             if (changes.length > 0) {
@@ -117,13 +150,18 @@ export const LeadsProvider = ({ children }) => {
                   leadName: updatedLeadData.name || existingLead.name,
                   type: 'Lead Edited',
                   date: now.toISOString().split('T')[0],
-                  time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  time: now.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
                   priority: 'Low',
-                  notes: `Updated properties: ${changes.join(', ')} by ${authorName}`,
+                  notes: `Updated properties: ${changes.join(
+                    ', ',
+                  )} by ${authorName}`,
                   author: authorName,
                   done: true,
                 },
-                config
+                config,
               );
             }
           }
@@ -139,7 +177,7 @@ export const LeadsProvider = ({ children }) => {
     }
   };
 
-  const createLead = async (leadData) => {
+  const createLead = async leadData => {
     try {
       const config = {};
       if (user?.token) {
@@ -147,7 +185,7 @@ export const LeadsProvider = ({ children }) => {
           Authorization: `Bearer ${user.token}`,
         };
       }
-      
+
       const payload = {
         name: leadData.name || 'Unknown Caller',
         phone: leadData.phone,
@@ -155,6 +193,8 @@ export const LeadsProvider = ({ children }) => {
         service: leadData.service || 'Unknown',
         status: leadData.status || 'New',
         assignedTo: user?.name || 'Unassigned',
+        nextFollowUp: leadData.nextFollowUp || '',
+        notes: leadData.comments || leadData.notes || '',
       };
 
       // Optimistic create (generate fake ID temporarily)
@@ -163,13 +203,22 @@ export const LeadsProvider = ({ children }) => {
       setLeads(prev => [optimisticNewLead, ...prev]);
 
       // Fire and forget
-      axios.post(API_ENDPOINTS.LEADS.BASE, payload, config)
+      axios
+        .post(API_ENDPOINTS.LEADS.BASE, payload, config)
         .then(response => {
-          const actualLead = response.data;
+          const actualLead = response.data.data || response.data;
           // Swap temp ID for real ID
-          setLeads(prev => prev.map(l => l.id === tempId ? actualLead : l));
+          setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
         })
-        .catch(err => console.error('Background create failed', err));
+        .catch(err => {
+          console.error('Background create failed', err?.response?.data);
+          // Rollback optimistic create if it fails (e.g., lead already exists)
+          setLeads(prev => prev.filter(l => l.id !== tempId));
+          // If 400, it might be because the lead already exists, so our local state is stale. Refresh it.
+          if (err.response && err.response.status === 400) {
+            fetchLeads();
+          }
+        });
 
       return { success: true, data: optimisticNewLead };
     } catch (error) {
@@ -178,8 +227,14 @@ export const LeadsProvider = ({ children }) => {
     }
   };
 
-  const fetchPaginatedLeads = async ({ page = 0, limit = 10, search = '', leadTypeTab = 'New' }) => {
-    if (!user) return { leads: [], totalCount: 0, totalPages: 0, tabCounts: {} };
+  const fetchPaginatedLeads = async ({
+    page = 0,
+    limit = 10,
+    search = '',
+    leadTypeTab = 'New',
+  }) => {
+    if (!user)
+      return { leads: [], totalCount: 0, totalPages: 0, tabCounts: {} };
     try {
       const config = {};
       if (user.token) {
@@ -187,17 +242,20 @@ export const LeadsProvider = ({ children }) => {
           Authorization: `Bearer ${user.token}`,
         };
       }
-      const response = await axios.get(`${API_ENDPOINTS.LEADS.BASE}/paginated`, {
-        params: {
-          page,
-          limit,
-          search,
-          leadTypeTab,
-          currentUserRole: user.role || '',
-          currentUserName: user.name || '',
+      const response = await axios.get(
+        `${API_ENDPOINTS.LEADS.BASE}/paginated`,
+        {
+          params: {
+            page,
+            limit,
+            search,
+            leadTypeTab,
+            currentUserRole: user.role || '',
+            currentUserName: user.name || '',
+          },
+          ...config,
         },
-        ...config,
-      });
+      );
       return response.data;
     } catch (error) {
       console.error('Error fetching paginated leads:', error);

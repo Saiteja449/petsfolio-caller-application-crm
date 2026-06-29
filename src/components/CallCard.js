@@ -11,8 +11,6 @@ import {
   PhoneIncomingIcon,
   PhoneOutgoingIcon,
   PhoneMissedIcon,
-  WhatsAppIcon,
-  SMSIcon,
   InfoIcon,
 } from '../icons/Icons';
 import { formatDate, formatTime, formatDuration, getCallTypeColor } from '../utils/formatters';
@@ -33,8 +31,6 @@ const CallTypeIcon = ({ type, size = 20 }) => {
 const CallCard = ({
   call,
   onCallAgain,
-  onWhatsApp,
-  onSMS,
   onViewDetails,
   showActions = true,
   detailsLabel = 'Details',
@@ -79,14 +75,8 @@ const CallCard = ({
             <PhoneIcon size={16} color={Colors.primary} />
             <Text style={styles.actionText}>Call</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={onWhatsApp}>
-            <WhatsAppIcon size={16} />
-            <Text style={styles.actionText}>WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={onSMS}>
-            <SMSIcon size={16} />
-            <Text style={styles.actionText}>SMS</Text>
-          </TouchableOpacity>
+
+
           <TouchableOpacity style={styles.actionBtn} onPress={onViewDetails}>
             <DetailsIcon size={16} color={Colors.primary} />
             <Text style={styles.actionText}>{detailsLabel}</Text>

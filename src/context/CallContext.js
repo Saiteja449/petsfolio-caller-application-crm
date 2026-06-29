@@ -114,23 +114,12 @@ export const CallProvider = ({ children }) => {
                   phone: log.phoneNumber,
                   source: 'Call',
                   service: 'Unknown',
-                  status: isUnanswered ? 'Not Attended' : 'New',
-                });
-              }
-            }
-          } else {
-            if (isUnanswered && existingLead.status !== 'Not Attended') {
-              if (updateLeadRef.current) {
-                updateLeadRef.current(existingLead.id, {
-                  name: existingLead.name,
-                  phone: existingLead.phone,
-                  service: existingLead.service,
-                  nextFollowUp: existingLead.nextFollowUp,
-                  status: 'Not Attended',
+                  status: 'New',
                 });
               }
             }
           }
+          // If the lead is already there, we do nothing.
         }
       }
 

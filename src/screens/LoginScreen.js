@@ -16,48 +16,29 @@ import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 
 const LoginScreen = () => {
-  const { login, sendOtp } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendOtp = async () => {
+  const handleLogin = async () => {
     if (!email || !email.includes('@')) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
-    setIsLoading(true);
-    const result = await sendOtp(email);
-    setIsLoading(false);
-
-    if (result.success) {
-      setIsOtpSent(true);
-      Alert.alert(
-        'OTP Sent',
-        result.message || 'An OTP has been sent to your email.',
-      );
-    } else {
-      Alert.alert(
-        'Error',
-        result.message || 'Failed to send OTP. Please check your email.',
-      );
-    }
-  };
-
-  const handleLogin = async () => {
-    if (!otp || otp.length < 4) {
-      Alert.alert('Invalid OTP', 'Please enter a valid OTP.');
+    if (!password) {
+      Alert.alert('Invalid Password', 'Please enter your password.');
       return;
     }
+    
     setIsLoading(true);
-    const result = await login(email, otp);
+    const result = await login(email, password);
     setIsLoading(false);
 
     if (!result.success) {
       Alert.alert(
         'Login Failed',
-        result.message || 'Invalid OTP. Please try again.',
+        result.message || 'Invalid credentials. Please try again.',
       );
     }
   };
@@ -73,52 +54,34 @@ const LoginScreen = () => {
       </View>
 
       <View style={styles.formContainer}>
-        {!isOtpSent ? (
-          <>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-            <CustomButton
-              title={isLoading ? 'Sending...' : 'Send OTP'}
-              onPress={handleSendOtp}
-              disabled={isLoading}
-              style={styles.button}
-            />
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>Enter OTP</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter 4-digit OTP"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={setOtp}
-              maxLength={6}
-            />
-            <CustomButton
-              title={isLoading ? 'Verifying...' : 'Login'}
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={styles.button}
-            />
-            <CustomButton
-              title="Back to Email"
-              variant="outline"
-              onPress={() => setIsOtpSent(false)}
-              disabled={isLoading}
-              style={styles.backButton}
-            />
-          </>
-        )}
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your email"
+          placeholderTextColor={Colors.textMuted}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <Text style={styles.label}>Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your password"
+          placeholderTextColor={Colors.textMuted}
+          secureTextEntry
+          autoCapitalize="none"
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <CustomButton
+          title={isLoading ? 'Logging in...' : 'Login'}
+          onPress={handleLogin}
+          disabled={isLoading}
+          style={styles.button}
+        />
       </View>
     </KeyboardAvoidingView>
   );

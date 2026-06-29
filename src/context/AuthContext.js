@@ -29,24 +29,16 @@ export const AuthProvider = ({ children }) => {
     loadSession();
   }, []);
 
-  const sendOtp = async (email) => {
-    try {
-      const response = await axios.post(API_ENDPOINTS.AUTH.SEND_OTP, { email });
-      return {
-        success: true,
-        message: response.data.message || 'OTP sent successfully',
-      };
-    } catch (error) {
-      console.error('Send OTP error:', error);
-      const message = error.response?.data?.message || 'Network error connecting to server.';
-      return { success: false, message };
-    }
-  };
 
-  const login = async (email, otp) => {
+
+  const login = async (email, password) => {
     try {
-      const response = await axios.post(API_ENDPOINTS.AUTH.VERIFY_OTP, { email, otp });
+      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
       const data = response.data;
+
+      if (data.success === false) {
+        return { success: false, message: data.message || 'Login failed' };
+      }
 
       const roleMap = {
         'sales manager': 'Sales Manager',
@@ -70,11 +62,12 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem('petsfolio_session_user', JSON.stringify(userWithToken));
       await AsyncStorage.setItem('petsfolio_token', data.token);
 
-      return { success: true, user: userWithToken };
+      return { success: data.success ?? true, user: userWithToken };
     } catch (error) {
       console.error('Login error:', error);
       const message = error.response?.data?.message || 'Network error connecting to server.';
-      return { success: false, message };
+      const success = error.response?.data?.success ?? false;
+      return { success, message };
     }
   };
 
@@ -95,7 +88,6 @@ export const AuthProvider = ({ children }) => {
         user,
         isAuthenticated,
         isLoading,
-        sendOtp,
         login,
         logout,
         updateProfile,

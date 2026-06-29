@@ -6,10 +6,10 @@ import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
-import { AcceptIcon, RejectIcon, WhatsAppIcon, SMSIcon } from '../icons/Icons';
+import { AcceptIcon, RejectIcon } from '../icons/Icons';
 import { getInitials } from '../utils/formatters';
 import { answerCall, rejectCall } from '../utils/DefaultDialer';
-import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
+
 
 const IncomingCallScreen = () => {
   const { incomingCall } = useCalls();

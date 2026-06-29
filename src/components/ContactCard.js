@@ -6,7 +6,7 @@ import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import { Shadows } from '../styles/Shadows';
 import Theme from '../styles/Theme';
-import { PhoneIcon, WhatsAppIcon, SMSIcon } from '../icons/Icons';
+import { PhoneIcon } from '../icons/Icons';
 import {
   formatDate,
   formatPhone,
@@ -18,8 +18,6 @@ const ContactCard = ({
   contact,
   index = 0,
   onCall,
-  onWhatsApp,
-  onSMS,
   onEdit,
   showActions = true,
 }) => {
@@ -72,14 +70,8 @@ const ContactCard = ({
             <PhoneIcon size={16} color={Colors.primary} />
             <Text style={[styles.actionText, styles.actionTextCall]}>Call</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={onWhatsApp}>
-            <WhatsAppIcon size={16} />
-            <Text style={styles.actionText}>WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={onSMS}>
-            <SMSIcon size={16} />
-            <Text style={styles.actionText}>SMS</Text>
-          </TouchableOpacity>
+
+
         </View>
       )}
     </View>

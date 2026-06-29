@@ -19,7 +19,7 @@ import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import { HistoryIcon, DialPadIcon } from '../icons/Icons';
-import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
+
 import { makeCall } from '../utils/DefaultDialer';
 import SearchBar from '../components/SearchBar';
 
@@ -65,13 +65,9 @@ const CallLogsScreen = () => {
     navigation.navigate('CallDetails', { callId });
   };
 
-  const navigateToWhatsApp = (phone, name) => {
-    openWhatsApp(phone);
-  };
 
-  const navigateToSMS = (phone, name) => {
-    openSMS(phone);
-  };
+
+
 
   return (
     <View style={styles.container}>
@@ -130,10 +126,8 @@ const CallLogsScreen = () => {
           <CallCard
             call={call}
             onCallAgain={() => makeCall(call.phoneNumber)}
-            onWhatsApp={() =>
-              navigateToWhatsApp(call.phoneNumber, call.customerName)
-            }
-            onSMS={() => navigateToSMS(call.phoneNumber, call.customerName)}
+
+
             onViewDetails={() => navigateToDetails(call.id)}
           />
         )}

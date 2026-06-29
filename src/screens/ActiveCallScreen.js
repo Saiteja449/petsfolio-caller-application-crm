@@ -21,6 +21,7 @@ import Theme from '../styles/Theme';
 import { RejectIcon, ChevronRightIcon } from '../icons/Icons';
 import { getInitials, formatPhone } from '../utils/formatters';
 import { endCall, setMute, setSpeaker } from '../utils/DefaultDialer';
+import CustomDatePicker from '../components/CustomDatePicker';
 
 const CircleButton = ({ label, iconText, active, onPress, color }) => (
   <TouchableOpacity style={styles.actionCol} onPress={onPress}>
@@ -85,6 +86,7 @@ const ActiveCallScreen = () => {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
   const [isFollowupTypeOpen, setIsFollowupTypeOpen] = useState(false);
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -388,16 +390,26 @@ const ActiveCallScreen = () => {
                 )}
 
                 <Text style={styles.label}>
-                  Next Follow Up Date (YYYY-MM-DD)
+                  Next Follow Up Date
                 </Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.nextFollowUp}
-                  onChangeText={text =>
-                    setFormData({ ...formData, nextFollowUp: text })
-                  }
-                  placeholder="e.g. 2026-06-20"
-                  placeholderTextColor={Colors.textMuted}
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  onPress={() => setIsDatePickerVisible(true)}
+                >
+                  <Text style={[styles.dropdownSelectorText, !formData.nextFollowUp && { color: Colors.textMuted }]}>
+                    {formData.nextFollowUp || 'Select Date (e.g. 2026-06-20)'}
+                  </Text>
+                  <ChevronRightIcon size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+
+                <CustomDatePicker
+                  visible={isDatePickerVisible}
+                  selectedDate={formData.nextFollowUp}
+                  onClose={() => setIsDatePickerVisible(false)}
+                  onSelect={(date) => {
+                    setFormData({ ...formData, nextFollowUp: date });
+                    setIsDatePickerVisible(false);
+                  }}
                 />
               </View>
             )}

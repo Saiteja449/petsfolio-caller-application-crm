@@ -29,7 +29,7 @@ import {
   ChevronRightIcon,
   DialPadIcon,
 } from '../icons/Icons';
-import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
+
 import { makeCall } from '../utils/DefaultDialer';
 import DialerModal from '../components/DialerModal';
 
@@ -168,7 +168,7 @@ const LeadsScreen = () => {
       status: lead.status || 'New',
       service: lead.service || 'Grooming',
       nextFollowUp: lead.nextFollowUp || '',
-      comments: lead.comments || '',
+      comments: lead.notes || lead.comments || '',
       followupType: lead.followupType || 'Call',
       importantLead: lead.importantLead || false,
     });
@@ -189,13 +189,9 @@ const LeadsScreen = () => {
     }
   };
 
-  const navigateToWhatsApp = (phone, name) => {
-    openWhatsApp(phone);
-  };
 
-  const navigateToSMS = (phone, name) => {
-    openSMS(phone);
-  };
+
+
 
   const handleLoadMore = () => {
     if (isLoading || isLoadingMore || isRefreshing) return;
@@ -301,8 +297,8 @@ const LeadsScreen = () => {
                 contact={lead}
                 index={index}
                 onCall={() => makeCall(lead.phone)}
-                onWhatsApp={() => navigateToWhatsApp(lead.phone, lead.name)}
-                onSMS={() => navigateToSMS(lead.phone, lead.name)}
+
+
                 onEdit={() => handleEditLead(lead)}
               />
             );

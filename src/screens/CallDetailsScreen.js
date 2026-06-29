@@ -18,8 +18,6 @@ import Theme from '../styles/Theme';
 import { Shadows } from '../styles/Shadows';
 import {
   PhoneIcon,
-  WhatsAppIcon,
-  SMSIcon,
   AcceptIcon,
   RejectIcon,
   ClockIcon,
@@ -31,7 +29,7 @@ import {
   getInitials,
   getCallTypeColor,
 } from '../utils/formatters';
-import { openWhatsApp, openSMS } from '../utils/ExternalLinks';
+
 import { makeCall } from '../utils/DefaultDialer';
 
 const CallDetailsScreen = () => {
@@ -108,20 +106,8 @@ const CallDetailsScreen = () => {
             icon={<PhoneIcon size={18} color={Colors.white} />}
             style={styles.actionBtn}
           />
-          <CustomButton
-            title="WhatsApp"
-            variant="success"
-            onPress={() => openWhatsApp(call.phoneNumber)}
-            icon={<WhatsAppIcon size={18} color={Colors.white} />}
-            style={styles.actionBtn}
-          />
-          <CustomButton
-            title="Send SMS"
-            variant="outline"
-            onPress={() => openSMS(call.phoneNumber)}
-            icon={<SMSIcon size={18} color={Colors.primary} />}
-            style={styles.actionBtn}
-          />
+
+
         </View>
 
         <Text style={styles.sectionTitle}>Call Controls</Text>
@@ -134,20 +120,8 @@ const CallDetailsScreen = () => {
             <RejectIcon size={48} />
             <Text style={styles.controlLabel}>Reject</Text>
           </View>
-          <TouchableOpacity
-            style={styles.controlItem}
-            onPress={() => openWhatsApp(call.phoneNumber)}
-          >
-            <WhatsAppIcon size={32} />
-            <Text style={styles.controlLabel}>WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.controlItem}
-            onPress={() => openSMS(call.phoneNumber)}
-          >
-            <SMSIcon size={32} />
-            <Text style={styles.controlLabel}>SMS</Text>
-          </TouchableOpacity>
+
+
         </View>
 
         <CustomButton
