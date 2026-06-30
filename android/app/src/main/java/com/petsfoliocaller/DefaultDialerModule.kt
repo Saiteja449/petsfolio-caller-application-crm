@@ -81,8 +81,46 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
     fun makeCall(phoneNumber: String, promise: Promise) {
         val telecomManager = reactApplicationContext.getSystemService(Context.TELECOM_SERVICE) as android.telecom.TelecomManager
         val uri = android.net.Uri.fromParts("tel", phoneNumber, null)
-        val extras = android.os.Bundle()
+        
         try {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(reactApplicationContext, android.Manifest.permission.READ_PHONE_STATE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                val accounts = telecomManager.callCapablePhoneAccounts
+                if (accounts.size > 1) {
+                    val activity = getCurrentActivity()
+                    if (activity != null) {
+                        activity.runOnUiThread {
+                            val builder = android.app.AlertDialog.Builder(activity)
+                            builder.setTitle("Select SIM to call")
+                            
+                            val simNames: Array<CharSequence> = accounts.map { accountHandle ->
+                                val account = telecomManager.getPhoneAccount(accountHandle)
+                                (account?.label ?: accountHandle.id ?: "SIM") as CharSequence
+                            }.toTypedArray()
+                            
+                            builder.setItems(simNames) { _, which ->
+                                val selectedAccount = accounts[which]
+                                val extras = android.os.Bundle()
+                                extras.putParcelable(android.telecom.TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedAccount)
+                                try {
+                                    telecomManager.placeCall(uri, extras)
+                                    promise.resolve(true)
+                                } catch (e: SecurityException) {
+                                    promise.reject("PERMISSION_DENIED", "CALL_PHONE permission denied")
+                                } catch (e: Exception) {
+                                    promise.reject("ERROR", e.message)
+                                }
+                            }
+                            builder.setOnCancelListener {
+                                promise.reject("CANCELLED", "User cancelled SIM selection")
+                            }
+                            builder.show()
+                        }
+                        return
+                    }
+                }
+            }
+
+            val extras = android.os.Bundle()
             telecomManager.placeCall(uri, extras)
             promise.resolve(true)
         } catch (e: SecurityException) {
