@@ -22,6 +22,7 @@ import { RejectIcon, ChevronRightIcon } from '../icons/Icons';
 import { getInitials, formatPhone } from '../utils/formatters';
 import { endCall, setMute, setSpeaker } from '../utils/DefaultDialer';
 import CustomDatePicker from '../components/CustomDatePicker';
+import CustomTimePicker from '../components/CustomTimePicker';
 
 const CircleButton = ({ label, iconText, active, onPress, color }) => (
   <TouchableOpacity style={styles.actionCol} onPress={onPress}>
@@ -46,7 +47,6 @@ const STATUS_OPTIONS = [
   'New',
   'Follow Up',
   'Not Attended',
-  'Not Answered',
   'Price Issue',
   'Joined',
   'Job Posted',
@@ -78,6 +78,7 @@ const ActiveCallScreen = () => {
     status: '',
     service: '',
     nextFollowUp: '',
+    followupTime: '',
     comments: '',
     followupType: '',
     importantLead: false,
@@ -87,6 +88,7 @@ const ActiveCallScreen = () => {
   const [isServiceOpen, setIsServiceOpen] = useState(false);
   const [isFollowupTypeOpen, setIsFollowupTypeOpen] = useState(false);
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+  const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -123,6 +125,7 @@ const ActiveCallScreen = () => {
           status: match.status || 'New',
           service: match.service || 'Grooming',
           nextFollowUp: match.nextFollowUp || '',
+          followupTime: match.followupTime || '',
           comments: match.comments || '',
           followupType: match.followupType || 'Call',
           importantLead: match.importantLead || false,
@@ -138,6 +141,7 @@ const ActiveCallScreen = () => {
           status: 'New',
           service: '',
           nextFollowUp: '',
+          followupTime: '',
           comments: '',
           followupType: '',
           importantLead: false,
@@ -274,7 +278,7 @@ const ActiveCallScreen = () => {
             <TextInput
               style={styles.input}
               value={formData.phone}
-              onChangeText={text => setFormData({ ...formData, phone: text })}
+              onChangeText={text => setFormData({ ...formData, phone: text.replace(/[^0-9+]/g, '') })}
               placeholder="Phone Number"
               keyboardType="phone-pad"
             />
@@ -329,7 +333,10 @@ const ActiveCallScreen = () => {
                 style={styles.dropdownOptionsContainerScroll}
                 nestedScrollEnabled={true}
               >
-                {STATUS_OPTIONS.map(opt => (
+                {(formData.service === 'Pet Insurance' 
+                  ? [...STATUS_OPTIONS, 'Policy Active'] 
+                  : STATUS_OPTIONS
+                ).map(opt => (
                   <TouchableOpacity
                     key={opt}
                     style={styles.dropdownOption}
@@ -409,6 +416,29 @@ const ActiveCallScreen = () => {
                   onSelect={(date) => {
                     setFormData({ ...formData, nextFollowUp: date });
                     setIsDatePickerVisible(false);
+                  }}
+                />
+                
+                <Text style={styles.label}>
+                  Follow Up Time
+                </Text>
+                <TouchableOpacity
+                  style={styles.dropdownSelector}
+                  onPress={() => setIsTimePickerVisible(true)}
+                >
+                  <Text style={[styles.dropdownSelectorText, !formData.followupTime && { color: Colors.textMuted }]}>
+                    {formData.followupTime || 'Select Time'}
+                  </Text>
+                  <ChevronRightIcon size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+
+                <CustomTimePicker
+                  visible={isTimePickerVisible}
+                  selectedTime={formData.followupTime}
+                  onClose={() => setIsTimePickerVisible(false)}
+                  onSelect={(time) => {
+                    setFormData({ ...formData, followupTime: time });
+                    setIsTimePickerVisible(false);
                   }}
                 />
               </View>

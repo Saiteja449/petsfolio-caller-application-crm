@@ -23,6 +23,8 @@ import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
 import { Shadows } from '../styles/Shadows';
+import CustomDatePicker from '../components/CustomDatePicker';
+import CustomTimePicker from '../components/CustomTimePicker';
 import {
   HistoryIcon,
   SettingsIcon,
@@ -48,7 +50,6 @@ const STATUS_OPTIONS = [
   'New',
   'Follow Up',
   'Not Attended',
-  'Not Answered',
   'Price Issue',
   'Joined',
   'Job Posted',
@@ -81,6 +82,7 @@ const LeadsScreen = () => {
     status: '',
     service: '',
     nextFollowUp: '',
+    followupTime: '',
     comments: '',
     followupType: '',
     importantLead: false,
@@ -88,6 +90,8 @@ const LeadsScreen = () => {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isServiceOpen, setIsServiceOpen] = useState(false);
   const [isFollowupTypeOpen, setIsFollowupTypeOpen] = useState(false);
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+  const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
 
   // Pagination states
   const [leadsList, setLeadsList] = useState([]);
@@ -168,6 +172,7 @@ const LeadsScreen = () => {
       status: lead.status || 'New',
       service: lead.service || 'Grooming',
       nextFollowUp: lead.nextFollowUp || '',
+      followupTime: lead.followupTime || '',
       comments: lead.notes || lead.comments || '',
       followupType: lead.followupType || 'Call',
       importantLead: lead.importantLead || false,
@@ -188,10 +193,6 @@ const LeadsScreen = () => {
       setSelectedLead(null);
     }
   };
-
-
-
-
 
   const handleLoadMore = () => {
     if (isLoading || isLoadingMore || isRefreshing) return;
@@ -296,9 +297,12 @@ const LeadsScreen = () => {
               <ContactCard
                 contact={lead}
                 index={index}
-                onCall={() => makeCall(lead.phone)}
-
-
+                onCall={() => {
+                  const cleanPhone = lead.phone
+                    ? lead.phone.replace(/[^0-9+]/g, '')
+                    : '';
+                  makeCall(cleanPhone);
+                }}
                 onEdit={() => handleEditLead(lead)}
               />
             );
@@ -333,7 +337,12 @@ const LeadsScreen = () => {
               <TextInput
                 style={styles.input}
                 value={editForm.phone}
-                onChangeText={text => setEditForm({ ...editForm, phone: text })}
+                onChangeText={text =>
+                  setEditForm({
+                    ...editForm,
+                    phone: text.replace(/[^0-9+]/g, ''),
+                  })
+                }
                 placeholder="Phone Number"
                 keyboardType="phone-pad"
               />
@@ -388,7 +397,10 @@ const LeadsScreen = () => {
                   style={styles.dropdownOptionsContainerScroll}
                   nestedScrollEnabled={true}
                 >
-                  {STATUS_OPTIONS.map(opt => (
+                  {(editForm.service === 'Pet Insurance'
+                    ? [...STATUS_OPTIONS, 'Policy Active']
+                    : STATUS_OPTIONS
+                  ).map(opt => (
                     <TouchableOpacity
                       key={opt}
                       style={styles.dropdownOption}
@@ -448,16 +460,56 @@ const LeadsScreen = () => {
                     </View>
                   )}
 
-                  <Text style={styles.inputLabel}>
-                    Next Follow Up Date (YYYY-MM-DD)
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={editForm.nextFollowUp}
-                    onChangeText={text =>
-                      setEditForm({ ...editForm, nextFollowUp: text })
-                    }
-                    placeholder="e.g. 2026-06-20"
+                  <Text style={styles.inputLabel}>Next Follow Up Date</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsDatePickerVisible(true)}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownSelectorText,
+                        !editForm.nextFollowUp && { color: Colors.textMuted },
+                      ]}
+                    >
+                      {editForm.nextFollowUp || 'Select Date'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+
+                  <CustomDatePicker
+                    visible={isDatePickerVisible}
+                    selectedDate={editForm.nextFollowUp}
+                    onClose={() => setIsDatePickerVisible(false)}
+                    onSelect={date => {
+                      setEditForm({ ...editForm, nextFollowUp: date });
+                      setIsDatePickerVisible(false);
+                    }}
+                  />
+
+                  <Text style={styles.inputLabel}>Follow Up Time</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsTimePickerVisible(true)}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownSelectorText,
+                        !editForm.followupTime && { color: Colors.textMuted },
+                      ]}
+                    >
+                      {editForm.followupTime || 'Select Time'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+
+                  <CustomTimePicker
+                    visible={isTimePickerVisible}
+                    selectedTime={editForm.followupTime}
+                    onClose={() => setIsTimePickerVisible(false)}
+                    onSelect={time => {
+                      setEditForm({ ...editForm, followupTime: time });
+                      setIsTimePickerVisible(false);
+                    }}
                   />
 
                   <Text style={styles.inputLabel}>Comments</Text>

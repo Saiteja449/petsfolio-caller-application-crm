@@ -15,6 +15,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLeads } from './LeadsContext';
+import { useAuth } from './AuthContext';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../utils/constants';
 
 const { DefaultDialer } = NativeModules;
 const dialerEmitter = new NativeEventEmitter(DefaultDialer);
@@ -27,7 +30,13 @@ export const CallProvider = ({ children }) => {
   const [incomingCall, setIncomingCall] = useState(null);
 
   const { leads, hasFetched, createLead, updateLead } = useLeads();
+  const { user } = useAuth();
   const leadsRef = useRef(leads);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     leadsRef.current = leads;
@@ -87,6 +96,19 @@ export const CallProvider = ({ children }) => {
         if (logTimestamp > lastProcessed) {
           if (logTimestamp > maxTimestamp) maxTimestamp = logTimestamp;
 
+          if (userRef.current?.name) {
+            const logDate = new Date(logTimestamp);
+            const dateStr = logDate.getFullYear() + '-' + String(logDate.getMonth() + 1).padStart(2, '0') + '-' + String(logDate.getDate()).padStart(2, '0');
+            
+            axios.post(API_ENDPOINTS.ANALYTICS.LOG_CALL, {
+              salesperson: userRef.current.name,
+              date: dateStr,
+              duration: log.duration,
+              callType: log.callType,
+              status: log.status
+            }).catch(e => console.log('Analytics sync error:', e));
+          }
+
           const isUnanswered = ['missed', 'rejected', 'not-connected'].includes(
             log.status,
           );
@@ -118,8 +140,13 @@ export const CallProvider = ({ children }) => {
                 });
               }
             }
+          } else {
+            if (isUnanswered && log.callType === 'outgoing') {
+              if (updateLeadRef.current && !['Joined', 'Converted', 'Lost', 'Job Posted', 'Job Assigned'].includes(existingLead.status)) {
+                updateLeadRef.current(existingLead.id, { ...existingLead, status: 'Not Attended' });
+              }
+            }
           }
-          // If the lead is already there, we do nothing.
         }
       }
 

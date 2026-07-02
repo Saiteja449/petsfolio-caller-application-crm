@@ -14,4 +14,7 @@ export const API_ENDPOINTS = {
   FOLLOWUPS: {
     BASE: `${BASE_URL}/followups`,
   },
+  ANALYTICS: {
+    LOG_CALL: `${BASE_URL}/analytics/log-call`,
+  },
 };
