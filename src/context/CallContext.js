@@ -135,7 +135,7 @@ export const CallProvider = ({ children }) => {
                       : log.customerName,
                   phone: log.phoneNumber,
                   source: 'Call',
-                  service: 'Unknown',
+                  service: 'General Enquiry',
                   status: 'New',
                 });
               }

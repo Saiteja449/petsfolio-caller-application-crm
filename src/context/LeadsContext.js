@@ -190,7 +190,7 @@ export const LeadsProvider = ({ children }) => {
         name: leadData.name || 'Unknown Caller',
         phone: leadData.phone,
         source: leadData.source || 'Call',
-        service: leadData.service || 'Unknown',
+        service: leadData.service || 'General Enquiry',
         status: leadData.status || 'New',
         assignedTo: user?.name || 'Unassigned',
         nextFollowUp: leadData.nextFollowUp || '',
