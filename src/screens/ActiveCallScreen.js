@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  NativeModules,
+  PermissionsAndroid,
 } from 'react-native';
 import Text from '../components/AppText';
 import { useCalls } from '../context/CallContext';
@@ -18,30 +20,15 @@ import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
 import Theme from '../styles/Theme';
-import { RejectIcon, ChevronRightIcon } from '../icons/Icons';
-import { getInitials, formatPhone } from '../utils/formatters';
-import { endCall, setMute, setSpeaker } from '../utils/DefaultDialer';
+import { ChevronRightIcon } from '../icons/Icons';
 import CustomDatePicker from '../components/CustomDatePicker';
 import CustomTimePicker from '../components/CustomTimePicker';
-
-const CircleButton = ({ label, iconText, active, onPress, color }) => (
-  <TouchableOpacity style={styles.actionCol} onPress={onPress}>
-    <View
-      style={[
-        styles.circleBtn,
-        active && styles.circleBtnActive,
-        color && { backgroundColor: color },
-      ]}
-    >
-      <Text
-        style={[styles.circleBtnIcon, active && styles.circleBtnIconActive]}
-      >
-        {iconText}
-      </Text>
-    </View>
-    <Text style={styles.actionLabel}>{label}</Text>
-  </TouchableOpacity>
-);
+import {
+  pick,
+  types,
+  isErrorWithCode,
+  errorCodes,
+} from '@react-native-documents/picker';
 
 const STATUS_OPTIONS = [
   'New',
@@ -66,14 +53,16 @@ const SERVICE_OPTIONS = [
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
 const ActiveCallScreen = () => {
-  const { activeCall } = useCalls();
+  const { pendingLeadUpdate, clearPendingLeadUpdate } = useCalls();
   const { leads, updateLead, createLead } = useLeads();
 
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSpeaker, setIsSpeaker] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
+  const [recordedFilePath, setRecordedFilePath] = useState(null);
+  const [recordedFileName, setRecordedFileName] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioDuration, setAudioDuration] = useState(null);
 
   const [existingLeadId, setExistingLeadId] = useState(null);
+  const [originalStatus, setOriginalStatus] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -95,21 +84,9 @@ const ActiveCallScreen = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    let interval;
-    if (activeCall?.status === 'active') {
-      interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    } else {
-      setCallDuration(0);
-    }
-    return () => clearInterval(interval);
-  }, [activeCall?.status]);
-
-  useEffect(() => {
-    if (activeCall && leads.length > 0) {
+    if (pendingLeadUpdate && leads) {
       const normalize = p => String(p).replace(/\D/g, '');
-      const searchPhone = normalize(activeCall.phoneNumber);
+      const searchPhone = normalize(pendingLeadUpdate.phone);
       const match = leads.find(l => {
         const p = normalize(l.phone);
         return (
@@ -121,10 +98,12 @@ const ActiveCallScreen = () => {
 
       if (match) {
         setExistingLeadId(match.id);
+        const matchStatus = match.status || 'New';
+        setOriginalStatus(matchStatus);
         setFormData({
           name: match.name,
           phone: match.phone,
-          status: match.status || 'New',
+          status: matchStatus,
           service: match.service || 'Grooming',
           nextFollowUp: match.nextFollowUp || '',
           followupTime: match.followupTime || '',
@@ -134,12 +113,10 @@ const ActiveCallScreen = () => {
         });
       } else {
         setExistingLeadId(null);
+        setOriginalStatus('');
         setFormData({
-          name:
-            activeCall.customerName && activeCall.customerName !== 'Unknown'
-              ? activeCall.customerName
-              : '',
-          phone: activeCall.phoneNumber,
+          name: pendingLeadUpdate.name || '',
+          phone: pendingLeadUpdate.phone,
           status: 'New',
           service: '',
           nextFollowUp: '',
@@ -150,44 +127,155 @@ const ActiveCallScreen = () => {
         });
       }
     }
-  }, [activeCall?.phoneNumber, leads]);
+  }, [pendingLeadUpdate, leads]);
 
-  if (!activeCall) return null;
-  const callData = activeCall;
+  useEffect(() => {
+    if (recordedFilePath && Platform.OS === 'android') {
+      const { DefaultDialer } = NativeModules;
+      if (DefaultDialer && DefaultDialer.getAudioDuration) {
+        DefaultDialer.getAudioDuration(recordedFilePath).then(durationSec => {
+          if (durationSec > 0) {
+            setAudioDuration(durationSec);
+          }
+        }).catch(() => setAudioDuration(null));
+      }
+    } else {
+      setAudioDuration(null);
+      setIsPlaying(false);
+    }
+  }, [recordedFilePath]);
 
-  const handleEndCall = () => {
-    endCall();
+  if (!pendingLeadUpdate) return null;
+
+  const requestStoragePermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        if (Platform.Version >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO,
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        }
+      }
+      return true;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const handleAttachRecording = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const { DefaultDialer } = NativeModules;
+        if (DefaultDialer) {
+          const isActive = await DefaultDialer.checkActiveCall();
+          if (isActive) {
+            Alert.alert(
+              'Active Call',
+              'There is an active call. Please end the call first.',
+            );
+            return;
+          }
+
+          const hasPermission = await requestStoragePermission();
+          if (hasPermission) {
+            try {
+              const file = await DefaultDialer.getLatestAudioFile();
+              if (file && file.uri) {
+                setRecordedFilePath(file.uri);
+                setRecordedFileName(file.name);
+                return;
+              }
+            } catch (err) {
+              console.log(
+                'Failed to auto-fetch audio, falling back to picker:',
+                err,
+              );
+            }
+          }
+        }
+      }
+
+      // Fallback to manual document picker
+      const [res] = await pick({
+        allowMultiSelection: false,
+        type: [types.audio, types.allFiles],
+        presentationStyle: 'fullScreen',
+      });
+      setRecordedFilePath(res.uri);
+      setRecordedFileName(res.name);
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        // User cancelled picker
+      } else {
+        console.error('DocumentPicker error:', err);
+        Alert.alert('Error', 'Failed to pick recording file.');
+      }
+    }
+  };
+
+  const handlePlayAudio = async () => {
+    if (!recordedFilePath) return;
+    try {
+      const { DefaultDialer } = NativeModules;
+      if (DefaultDialer) {
+        await DefaultDialer.playAudio(recordedFilePath);
+        setIsPlaying(true);
+        if (audioDuration) {
+          setTimeout(() => setIsPlaying(false), audioDuration * 1000);
+        }
+      }
+    } catch (err) {
+      console.log('Playback error:', err);
+    }
+  };
+
+  const handleStopAudio = async () => {
+    try {
+      const { DefaultDialer } = NativeModules;
+      if (DefaultDialer) {
+        await DefaultDialer.stopAudio();
+        setIsPlaying(false);
+      }
+    } catch (err) {
+      console.log('Stop error:', err);
+    }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     let res;
+
+    // Create payload, attaching recording if present
+    const payload = { ...formData };
+    if (recordedFilePath) {
+      payload.recordingPath = recordedFilePath;
+      payload.recordingName = recordedFileName;
+    }
+
     if (existingLeadId) {
-      res = await updateLead(existingLeadId, formData);
+      res = await updateLead(existingLeadId, payload);
     } else {
       res = await createLead({
-        ...formData,
+        ...payload,
         name: formData.name || 'Unknown Caller',
         source: 'Call',
       });
-      if (res.success && res.data?.id) {
-        setExistingLeadId(res.data.id);
-      }
     }
     setIsSaving(false);
     if (res.success) {
-      endCall();
+      clearPendingLeadUpdate();
+      setRecordedFilePath(null);
+      setRecordedFileName('');
     } else {
       Alert.alert('Error', 'Failed to save lead details.');
     }
-  };
-
-  const formatDuration = seconds => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
   };
 
   return (
@@ -196,68 +284,21 @@ const ActiveCallScreen = () => {
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Top 35% - Call Controls */}
-        <View style={styles.topSection}>
-          <View style={styles.callerInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {getInitials(callData.customerName)}
-              </Text>
-            </View>
-            <View style={styles.callerTextWrap}>
-              <Text style={styles.name}>
-                {callData.customerName || 'Unknown Caller'}
-              </Text>
-              <Text style={styles.phone}>
-                {formatPhone(callData.phoneNumber)}
-              </Text>
-              <Text style={styles.status}>
-                {callData.status === 'dialing'
-                  ? 'Dialing...'
-                  : callData.status === 'active'
-                  ? formatDuration(callDuration)
-                  : 'Connecting...'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.actionRow}>
-            <CircleButton
-              label="Mute"
-              iconText="M"
-              active={isMuted}
-              onPress={() => {
-                setMute(!isMuted);
-                setIsMuted(!isMuted);
-              }}
-            />
-            <CircleButton
-              label="Speaker"
-              iconText="S"
-              active={isSpeaker}
-              onPress={() => {
-                setSpeaker(!isSpeaker);
-                setIsSpeaker(!isSpeaker);
-              }}
-            />
-          </View>
-        </View>
-
-        {/* Bottom 65% - Lead Form */}
-        <View style={styles.bottomSection}>
+        <View style={styles.bottomSectionFull}>
           <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>
-              {existingLeadId ? 'Update Lead' : 'Create Lead'}
-            </Text>
+            <Text style={styles.formTitle}>Update Lead Status</Text>
             <TouchableOpacity
-              style={styles.saveBtn}
+              style={[
+                styles.saveBtn,
+                (isSaving || (existingLeadId && originalStatus === formData.status)) && { opacity: 0.5 }
+              ]}
               onPress={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || (existingLeadId && originalStatus === formData.status)}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.saveBtnText}>Save to End</Text>
+                <Text style={styles.saveBtnText}>Save & Close</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -267,6 +308,53 @@ const ActiveCallScreen = () => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            <View style={styles.recordingSection}>
+              <Text style={styles.label}>Call Recording</Text>
+              {recordedFilePath ? (
+                <View style={styles.recordingSelected}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.recordingFileName} numberOfLines={1}>
+                      {recordedFileName}
+                    </Text>
+                    {audioDuration !== null && (
+                      <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                        Duration: {Math.floor(audioDuration / 60)}:{(audioDuration % 60).toString().padStart(2, '0')}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {isPlaying ? (
+                      <TouchableOpacity onPress={handleStopAudio} style={{ marginRight: 15 }}>
+                        <Text style={{ color: Colors.danger, fontWeight: 'bold' }}>Stop</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity onPress={handlePlayAudio} style={{ marginRight: 15 }}>
+                        <Text style={{ color: Colors.primary, fontWeight: 'bold' }}>Play</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleStopAudio();
+                        setRecordedFilePath(null);
+                        setRecordedFileName('');
+                      }}
+                    >
+                      <Text style={styles.removeRecordingText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.attachBtn}
+                  onPress={handleAttachRecording}
+                >
+                  <Text style={styles.attachBtnText}>
+                    Attach Audio Recording
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <Text style={styles.label}>Name</Text>
             <TextInput
               style={styles.input}
@@ -280,7 +368,12 @@ const ActiveCallScreen = () => {
             <TextInput
               style={styles.input}
               value={formData.phone}
-              onChangeText={text => setFormData({ ...formData, phone: text.replace(/[^0-9+]/g, '') })}
+              onChangeText={text =>
+                setFormData({
+                  ...formData,
+                  phone: text.replace(/[^0-9+]/g, ''),
+                })
+              }
               placeholder="Phone Number"
               keyboardType="phone-pad"
             />
@@ -335,8 +428,8 @@ const ActiveCallScreen = () => {
                 style={styles.dropdownOptionsContainerScroll}
                 nestedScrollEnabled={true}
               >
-                {(formData.service === 'Pet Insurance' 
-                  ? [...STATUS_OPTIONS, 'Policy Active'] 
+                {(formData.service === 'Pet Insurance'
+                  ? [...STATUS_OPTIONS, 'Policy Active']
                   : STATUS_OPTIONS
                 ).map(opt => (
                   <TouchableOpacity
@@ -398,14 +491,17 @@ const ActiveCallScreen = () => {
                   </View>
                 )}
 
-                <Text style={styles.label}>
-                  Next Follow Up Date
-                </Text>
+                <Text style={styles.label}>Next Follow Up Date</Text>
                 <TouchableOpacity
                   style={styles.dropdownSelector}
                   onPress={() => setIsDatePickerVisible(true)}
                 >
-                  <Text style={[styles.dropdownSelectorText, !formData.nextFollowUp && { color: Colors.textMuted }]}>
+                  <Text
+                    style={[
+                      styles.dropdownSelectorText,
+                      !formData.nextFollowUp && { color: Colors.textMuted },
+                    ]}
+                  >
                     {formData.nextFollowUp || 'Select Date (e.g. 2026-06-20)'}
                   </Text>
                   <ChevronRightIcon size={16} color={Colors.textMuted} />
@@ -415,20 +511,23 @@ const ActiveCallScreen = () => {
                   visible={isDatePickerVisible}
                   selectedDate={formData.nextFollowUp}
                   onClose={() => setIsDatePickerVisible(false)}
-                  onSelect={(date) => {
+                  onSelect={date => {
                     setFormData({ ...formData, nextFollowUp: date });
                     setIsDatePickerVisible(false);
                   }}
                 />
-                
-                <Text style={styles.label}>
-                  Follow Up Time
-                </Text>
+
+                <Text style={styles.label}>Follow Up Time</Text>
                 <TouchableOpacity
                   style={styles.dropdownSelector}
                   onPress={() => setIsTimePickerVisible(true)}
                 >
-                  <Text style={[styles.dropdownSelectorText, !formData.followupTime && { color: Colors.textMuted }]}>
+                  <Text
+                    style={[
+                      styles.dropdownSelectorText,
+                      !formData.followupTime && { color: Colors.textMuted },
+                    ]}
+                  >
                     {formData.followupTime || 'Select Time'}
                   </Text>
                   <ChevronRightIcon size={16} color={Colors.textMuted} />
@@ -438,7 +537,7 @@ const ActiveCallScreen = () => {
                   visible={isTimePickerVisible}
                   selectedTime={formData.followupTime}
                   onClose={() => setIsTimePickerVisible(false)}
-                  onSelect={(time) => {
+                  onSelect={time => {
                     setFormData({ ...formData, followupTime: time });
                     setIsTimePickerVisible(false);
                   }}
@@ -493,94 +592,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
   },
-  topSection: {
-    flex: 0.45,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: Spacing.huge,
-  },
-  callerInfo: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  avatarText: {
-    fontSize: 36,
-    color: Colors.white,
-    fontFamily: Fonts.family.bold,
-  },
-  callerTextWrap: {
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: Fonts.sizes.xxl,
-    color: Colors.white,
-    fontFamily: Fonts.family.bold,
-    textAlign: 'center',
-  },
-  phone: {
-    fontSize: Fonts.sizes.lg,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  status: {
-    fontSize: Fonts.sizes.md,
-    color: Colors.white,
-    marginTop: Spacing.sm,
-    opacity: 0.9,
-    textAlign: 'center',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.huge,
-  },
-  actionCol: {
-    alignItems: 'center',
-    width: 70,
-  },
-  circleBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xs,
-  },
-  circleBtnActive: {
-    backgroundColor: Colors.white,
-  },
-  circleBtnIcon: {
-    color: Colors.white,
-    fontSize: 16,
-    fontFamily: Fonts.family.bold,
-  },
-  circleBtnIconActive: {
-    color: Colors.text,
-  },
-  actionLabel: {
-    color: Colors.white,
-    fontSize: Fonts.sizes.xs,
-    opacity: 0.9,
-  },
-  bottomSection: {
-    flex: 0.55,
+  bottomSectionFull: {
+    flex: 1,
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
+    marginTop: Spacing.huge,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -5 },
@@ -612,12 +631,46 @@ const styles = StyleSheet.create({
   formScroll: {
     flex: 1,
   },
+  recordingSection: {
+    marginBottom: Spacing.md,
+  },
+  attachBtn: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    borderRadius: Theme.borderRadius,
+    padding: Spacing.md,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  attachBtnText: {
+    color: Colors.primary,
+    fontFamily: Fonts.family.medium,
+  },
+  recordingSelected: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: Spacing.md,
+    borderRadius: Theme.borderRadius,
+  },
+  recordingFileName: {
+    color: Colors.text,
+    fontFamily: Fonts.family.medium,
+    flex: 1,
+    marginRight: Spacing.md,
+  },
+  removeRecordingText: {
+    color: Colors.danger || '#ef4444',
+    fontFamily: Fonts.family.medium,
+  },
   label: {
     fontSize: Fonts.sizes.sm,
     fontFamily: Fonts.family.medium,
     color: Colors.text,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   input: {
     backgroundColor: Colors.card,

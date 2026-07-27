@@ -5,6 +5,9 @@ import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Environment
+import java.io.File
+import java.io.IOException
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
@@ -16,6 +19,7 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
 
     private val REQUEST_ID_MULTIPLE_PERMISSIONS = 1
     private var dialerPromise: Promise? = null
+    private var mediaPlayer: android.media.MediaPlayer? = null
 
     private val activityEventListener: ActivityEventListener = object : BaseActivityEventListener() {
         override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
@@ -158,5 +162,120 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
     @ReactMethod
     fun getCurrentCall(promise: Promise) {
         promise.resolve(CallManager.getCurrentCallState())
+    }
+
+    @ReactMethod
+    fun checkActiveCall(promise: Promise) {
+        try {
+            val tm = reactApplicationContext.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+            val state = tm.callState
+            if (state == android.telephony.TelephonyManager.CALL_STATE_OFFHOOK || state == android.telephony.TelephonyManager.CALL_STATE_RINGING) {
+                promise.resolve(true)
+            } else {
+                promise.resolve(false)
+            }
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun getLatestAudioFile(promise: Promise) {
+        try {
+            val uri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val projection = arrayOf(
+                android.provider.MediaStore.Audio.Media._ID,
+                android.provider.MediaStore.Audio.Media.DATA,
+                android.provider.MediaStore.Audio.Media.DISPLAY_NAME,
+                android.provider.MediaStore.Audio.Media.DATE_ADDED
+            )
+            val sortOrder = "${android.provider.MediaStore.Audio.Media.DATE_ADDED} DESC"
+            
+            reactApplicationContext.contentResolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                sortOrder
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val dataColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
+                    val nameColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
+                    
+                    val filePath = cursor.getString(dataColumn)
+                    val fileName = cursor.getString(nameColumn)
+                    
+                    val map = com.facebook.react.bridge.Arguments.createMap()
+                    map.putString("uri", "file://" + filePath)
+                    map.putString("name", fileName)
+                    promise.resolve(map)
+                } else {
+                    promise.reject("NOT_FOUND", "No audio files found on device")
+                }
+            } ?: promise.reject("ERROR", "Failed to query media store")
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun playAudio(filePath: String, promise: Promise) {
+        try {
+            val path = filePath.replace("file://", "")
+            val file = java.io.File(path)
+            if (!file.exists() || file.length() == 0L) {
+                promise.reject("PLAYBACK_ERROR", "Audio file is empty or does not exist.")
+                return
+            }
+            
+            mediaPlayer?.release()
+            mediaPlayer = android.media.MediaPlayer().apply {
+                setDataSource(file.absolutePath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    // Send an event or just resolve if we passed a callback, but we can't resolve twice.
+                }
+            }
+            promise.resolve("STARTED")
+        } catch (e: Exception) {
+            promise.reject("PLAYBACK_ERROR", "Failed to play audio: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun stopAudio(promise: Promise) {
+        try {
+            mediaPlayer?.apply {
+                if (isPlaying) {
+                    stop()
+                }
+                release()
+            }
+            mediaPlayer = null
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("PLAYBACK_ERROR", "Failed to stop audio: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun getAudioDuration(filePath: String, promise: Promise) {
+        try {
+            val path = filePath.replace("file://", "")
+            val file = java.io.File(path)
+            if (!file.exists() || file.length() == 0L) {
+                promise.resolve(0)
+                return
+            }
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(path)
+            val time = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val durationMs = time?.toLongOrNull() ?: 0L
+            retriever.release()
+            promise.resolve((durationMs / 1000).toInt())
+        } catch (e: Exception) {
+            promise.resolve(0)
+        }
     }
 }

@@ -300,9 +300,7 @@ const LeadsScreen = () => {
                 contact={lead}
                 index={index}
                 onCall={() => {
-                  const cleanPhone = lead.phone
-                    ? lead.phone.replace(/[^0-9+]/g, '')
-                    : '';
+                  const cleanPhone = String(lead.phone).replace(/\D/g, '');
                   makeCall(cleanPhone);
                 }}
                 onEdit={() => handleEditLead(lead)}

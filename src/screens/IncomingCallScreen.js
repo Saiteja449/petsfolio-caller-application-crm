@@ -12,46 +12,7 @@ import { answerCall, rejectCall } from '../utils/DefaultDialer';
 
 
 const IncomingCallScreen = () => {
-  const { incomingCall } = useCalls();
-  if (!incomingCall) return null;
-  const callData = incomingCall;
-
-  const handleAccept = () => {
-    answerCall();
-  };
-
-  const handleReject = () => {
-    rejectCall();
-  };
-
-  return (
-    <Modal visible={true} transparent={true} animationType="fade">
-      <View style={styles.overlay}>
-        <View style={styles.content}>
-          <Text style={styles.label}>Incoming Call</Text>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {getInitials(callData.customerName)}
-            </Text>
-          </View>
-          <Text style={styles.name}>{callData.customerName}</Text>
-          <Text style={styles.phone}>{callData.phoneNumber}</Text>
-          <Text style={styles.ringing}>Ringing...</Text>
-
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.actionCol} onPress={handleReject}>
-              <RejectIcon size={56} />
-              <Text style={styles.actionLabel}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionCol} onPress={handleAccept}>
-              <AcceptIcon size={56} />
-              <Text style={styles.actionLabel}>Accept</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  return null;
 };
 
 const styles = StyleSheet.create({

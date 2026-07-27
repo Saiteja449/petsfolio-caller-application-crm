@@ -82,15 +82,55 @@ export const LeadsProvider = ({ children }) => {
         leadUpdatePayload.importantLead = updatedFields.importantLead;
       }
 
+      let requestPayload = leadUpdatePayload;
+      let requestConfig = config;
+
+      if (updatedFields.recordingPath) {
+        requestPayload = new FormData();
+        Object.keys(leadUpdatePayload).forEach(key => {
+          if (leadUpdatePayload[key] !== undefined) {
+            requestPayload.append(key, leadUpdatePayload[key]);
+          }
+        });
+        const filename = updatedFields.recordingPath.split('/').pop();
+        requestPayload.append('recording', {
+          uri: 'file://' + updatedFields.recordingPath,
+          name: filename,
+          type: 'audio/mp4',
+        });
+        requestConfig = {
+          ...config,
+          headers: {
+            ...config.headers,
+            'Content-Type': 'multipart/form-data',
+          },
+        };
+      }
+
       // Fire and forget API calls
       (async () => {
         try {
-          const response = await axios.put(
-            `${API_ENDPOINTS.LEADS.BASE}/${id}`,
-            leadUpdatePayload,
-            config,
-          );
-          const updatedLeadData = response.data.data || response.data;
+          let updatedLeadData;
+          
+          if (updatedFields.recordingPath) {
+            const fetchResponse = await fetch(`${API_ENDPOINTS.LEADS.BASE}/${id}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${user?.token}`,
+              },
+              body: requestPayload,
+            });
+            const jsonResponse = await fetchResponse.json();
+            if (!fetchResponse.ok) throw new Error(jsonResponse.message || 'Update failed');
+            updatedLeadData = jsonResponse.data || jsonResponse;
+          } else {
+            const response = await axios.put(
+              `${API_ENDPOINTS.LEADS.BASE}/${id}`,
+              requestPayload,
+              requestConfig,
+            );
+            updatedLeadData = response.data.data || response.data;
+          }
 
           const authorName = user?.name || 'Mobile App';
 
@@ -166,7 +206,7 @@ export const LeadsProvider = ({ children }) => {
             }
           }
         } catch (e) {
-          console.error('Background update failed', e);
+          console.error('Background update failed', e?.response?.data || e.message || e);
         }
       })();
 
@@ -202,23 +242,64 @@ export const LeadsProvider = ({ children }) => {
       const optimisticNewLead = { ...payload, id: tempId };
       setLeads(prev => [optimisticNewLead, ...prev]);
 
-      // Fire and forget
-      axios
-        .post(API_ENDPOINTS.LEADS.BASE, payload, config)
-        .then(response => {
-          const actualLead = response.data.data || response.data;
-          // Swap temp ID for real ID
-          setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
-        })
-        .catch(err => {
-          console.error('Background create failed', err?.response?.data);
-          // Rollback optimistic create if it fails (e.g., lead already exists)
-          setLeads(prev => prev.filter(l => l.id !== tempId));
-          // If 400, it might be because the lead already exists, so our local state is stale. Refresh it.
-          if (err.response && err.response.status === 400) {
-            fetchLeads();
+      let requestPayload = payload;
+      let requestConfig = config;
+
+      if (leadData.recordingPath) {
+        requestPayload = new FormData();
+        Object.keys(payload).forEach(key => {
+          if (payload[key] !== undefined) {
+            requestPayload.append(key, payload[key]);
           }
         });
+        const filename = leadData.recordingPath.split('/').pop();
+        requestPayload.append('recording', {
+          uri: 'file://' + leadData.recordingPath,
+          name: filename,
+          type: 'audio/mp4',
+        });
+        requestConfig = {
+          ...config,
+          headers: {
+            ...config.headers,
+            'Content-Type': 'multipart/form-data',
+          },
+        };
+      }
+
+      // Fire and forget
+      if (leadData.recordingPath) {
+        fetch(API_ENDPOINTS.LEADS.BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+          },
+          body: requestPayload,
+        })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Create failed');
+            const actualLead = data.data || data;
+            setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
+          })
+          .catch(err => {
+            console.error('Background create failed (fetch)', err);
+            setLeads(prev => prev.filter(l => l.id !== tempId));
+            fetchLeads();
+          });
+      } else {
+        axios
+          .post(API_ENDPOINTS.LEADS.BASE, requestPayload, requestConfig)
+          .then(response => {
+            const actualLead = response.data.data || response.data;
+            setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
+          })
+          .catch(err => {
+            console.error('Background create failed (axios)', err?.response?.data || err);
+            setLeads(prev => prev.filter(l => l.id !== tempId));
+            if (err.response && err.response.status === 400) fetchLeads();
+          });
+      }
 
       return { success: true, data: optimisticNewLead };
     } catch (error) {

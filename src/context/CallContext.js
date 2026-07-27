@@ -12,6 +12,7 @@ import {
   Platform,
   NativeEventEmitter,
   NativeModules,
+  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLeads } from './LeadsContext';
@@ -19,15 +20,11 @@ import { useAuth } from './AuthContext';
 import axios from 'axios';
 import { API_ENDPOINTS } from '../utils/constants';
 
-const { DefaultDialer } = NativeModules;
-const dialerEmitter = new NativeEventEmitter(DefaultDialer);
-
 const CallContext = createContext(null);
 
 export const CallProvider = ({ children }) => {
   const [callLogs, setCallLogs] = useState([]);
-  const [activeCall, setActiveCall] = useState(null);
-  const [incomingCall, setIncomingCall] = useState(null);
+  const [pendingLeadUpdate, setPendingLeadUpdate] = useState(null);
 
   const { leads, hasFetched, createLead, updateLead } = useLeads();
   const { user } = useAuth();
@@ -98,15 +95,22 @@ export const CallProvider = ({ children }) => {
 
           if (userRef.current?.name) {
             const logDate = new Date(logTimestamp);
-            const dateStr = logDate.getFullYear() + '-' + String(logDate.getMonth() + 1).padStart(2, '0') + '-' + String(logDate.getDate()).padStart(2, '0');
-            
-            axios.post(API_ENDPOINTS.ANALYTICS.LOG_CALL, {
-              salesperson: userRef.current.name,
-              date: dateStr,
-              duration: log.duration,
-              callType: log.callType,
-              status: log.status
-            }).catch(e => console.log('Analytics sync error:', e));
+            const dateStr =
+              logDate.getFullYear() +
+              '-' +
+              String(logDate.getMonth() + 1).padStart(2, '0') +
+              '-' +
+              String(logDate.getDate()).padStart(2, '0');
+
+            axios
+              .post(API_ENDPOINTS.ANALYTICS.LOG_CALL, {
+                salesperson: userRef.current.name,
+                date: dateStr,
+                duration: log.duration,
+                callType: log.callType,
+                status: log.status,
+              })
+              .catch(e => console.log('Analytics sync error:', e));
           }
 
           const isUnanswered = ['missed', 'rejected', 'not-connected'].includes(
@@ -140,13 +144,8 @@ export const CallProvider = ({ children }) => {
                 });
               }
             }
-          } else {
-            if (isUnanswered && log.callType === 'outgoing') {
-              if (updateLeadRef.current && !['Joined', 'Converted', 'Lost', 'Job Posted', 'Job Assigned'].includes(existingLead.status)) {
-                updateLeadRef.current(existingLead.id, { ...existingLead, status: 'Not Attended' });
-              }
-            }
           }
+          // Intentionally removed auto-update for outgoing/unanswered calls. Users will update status manually.
         }
       }
 
@@ -165,6 +164,34 @@ export const CallProvider = ({ children }) => {
     syncNewCallsToCRM();
   }, [syncNewCallsToCRM]);
 
+  const loadPending = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('pendingLeadUpdate');
+      if (stored) {
+        setPendingLeadUpdate(JSON.parse(stored));
+      }
+    } catch (err) {
+      console.error('Error loading pending lead', err);
+    }
+  };
+
+  useEffect(() => {
+    loadPending();
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        loadPending();
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const clearPendingLeadUpdate = useCallback(async () => {
+    setPendingLeadUpdate(null);
+    await AsyncStorage.removeItem('pendingLeadUpdate');
+  }, []);
+
   // Update existing logs/calls when leads change
   useEffect(() => {
     if (leads && leads.length > 0) {
@@ -179,24 +206,6 @@ export const CallProvider = ({ children }) => {
           return log;
         });
         return changed ? updatedLogs : prevLogs;
-      });
-
-      setActiveCall(prev => {
-        if (!prev) return prev;
-        const leadName = findLeadNameByPhone(prev.phoneNumber);
-        if (leadName && prev.customerName !== leadName) {
-          return { ...prev, customerName: leadName };
-        }
-        return prev;
-      });
-
-      setIncomingCall(prev => {
-        if (!prev) return prev;
-        const leadName = findLeadNameByPhone(prev.phoneNumber);
-        if (leadName && prev.customerName !== leadName) {
-          return { ...prev, customerName: leadName };
-        }
-        return prev;
       });
     }
   }, [leads, findLeadNameByPhone]);
@@ -267,53 +276,6 @@ export const CallProvider = ({ children }) => {
       }
     };
     fetchCallLogs();
-
-    if (Platform.OS === 'android') {
-      const handleCallStateChange = event => {
-        const { state, phoneNumber, name } = event;
-        const resolvedName =
-          findLeadNameByPhone(phoneNumber) || name || 'Unknown';
-
-        if (state === 'RINGING') {
-          setIncomingCall({
-            id: `incoming-${Date.now()}`,
-            customerName: resolvedName,
-            phoneNumber: phoneNumber,
-            callType: 'incoming',
-            status: 'ringing',
-            date: new Date().toISOString(),
-          });
-        } else if (state === 'ACTIVE' || state === 'DIALING') {
-          setIncomingCall(null);
-          setActiveCall({
-            id: `call-${Date.now()}`,
-            customerName: resolvedName,
-            phoneNumber: phoneNumber,
-            callType: state === 'DIALING' ? 'outgoing' : 'incoming',
-            status: state.toLowerCase(),
-            date: new Date().toISOString(),
-          });
-        } else if (state === 'DISCONNECTED') {
-          setIncomingCall(null);
-          setActiveCall(null);
-          setTimeout(fetchCallLogs, 1500); // refresh logs after call ends
-        }
-      };
-
-      import('../utils/DefaultDialer').then(({ getCurrentCall }) => {
-        getCurrentCall().then(stateObj => {
-          if (stateObj && stateObj.state && stateObj.state !== 'DISCONNECTED') {
-            handleCallStateChange(stateObj);
-          }
-        });
-      });
-
-      const subscription = dialerEmitter.addListener(
-        'onCallStateChanged',
-        handleCallStateChange,
-      );
-      return () => subscription.remove();
-    }
   }, []);
 
   const addCallLog = useCallback(call => {
@@ -362,60 +324,19 @@ export const CallProvider = ({ children }) => {
       return { phone, name: log.customerName || 'Unknown' };
     });
 
-  const simulateIncomingCall = useCallback(contact => {
-    setIncomingCall({
-      id: `incoming-${Date.now()}`,
-      customerName: contact.name,
-      phoneNumber: contact.phone,
-      contactId: contact.id,
-      callType: 'incoming',
-      status: 'ringing',
-      date: new Date().toISOString(),
-    });
-  }, []);
-
-  const acceptCall = useCallback(() => {
-    if (incomingCall) {
-      setActiveCall({ ...incomingCall, status: 'connected' });
-      setIncomingCall(null);
-    }
-  }, [incomingCall]);
-
-  const rejectCall = useCallback(() => {
-    if (incomingCall) {
-      addCallLog({
-        ...incomingCall,
-        id: `call-${Date.now()}`,
-        status: 'missed',
-        callType: 'missed',
-        duration: 0,
-        isResolved: false,
-      });
-      setIncomingCall(null);
-    }
-  }, [incomingCall, addCallLog]);
-
-  const endCall = useCallback(() => {
-    setActiveCall(null);
-  }, []);
 
   return (
     <CallContext.Provider
       value={{
         callLogs,
-        activeCall,
-        incomingCall,
         recentNumbers,
         addCallLog,
         markMissedResolved,
         getFilteredCalls,
         getMissedCalls,
         getCallById,
-        simulateIncomingCall,
-        acceptCall,
-        rejectCall,
-        endCall,
-        setIncomingCall,
+        pendingLeadUpdate,
+        clearPendingLeadUpdate,
       }}
     >
       {children}
