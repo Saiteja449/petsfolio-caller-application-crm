@@ -48,6 +48,8 @@ const STATUS_OPTIONS = [
   'Follow Up',
   'Not Attended',
   'Price Issue',
+  'Not Interested',
+  'Not Responding',
   'Joined',
   'Job Posted',
   'Job Assigned',
@@ -57,8 +59,8 @@ const SERVICE_OPTIONS = [
   'Grooming',
   'Walking',
   'Training',
-  'Sitting',
-  'Insurance',
+  'Pet Sitting',
+  'Pet Insurance',
 ];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
@@ -126,7 +128,7 @@ const ActiveCallScreen = () => {
           service: match.service || 'Grooming',
           nextFollowUp: match.nextFollowUp || '',
           followupTime: match.followupTime || '',
-          comments: match.comments || '',
+          comments: match.notes || match.comments || '',
           followupType: match.followupType || 'Call',
           importantLead: match.importantLead || false,
         });

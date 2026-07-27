@@ -51,6 +51,8 @@ const STATUS_OPTIONS = [
   'Follow Up',
   'Not Attended',
   'Price Issue',
+  'Not Interested',
+  'Not Responding',
   'Joined',
   'Job Posted',
   'Job Assigned',
@@ -60,8 +62,8 @@ const SERVICE_OPTIONS = [
   'Grooming',
   'Walking',
   'Training',
-  'Sitting',
-  'Insurance',
+  'Pet Sitting',
+  'Pet Insurance',
 ];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];

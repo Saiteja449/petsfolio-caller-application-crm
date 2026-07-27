@@ -1,5 +1,5 @@
 // API Base URL - Update this when deploying or changing local IP
-export const BASE_URL = 'https://crm-backend-14p9.onrender.com/api';
+export const BASE_URL = 'https://holyminicow.com/crm-beta/api';
 
 export const API_ENDPOINTS = {
   AUTH: {
