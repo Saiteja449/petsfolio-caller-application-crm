@@ -30,6 +30,7 @@ import {
   SettingsIcon,
   ChevronRightIcon,
   DialPadIcon,
+  PlusIcon,
 } from '../icons/Icons';
 
 import { makeCall } from '../utils/DefaultDialer';
@@ -70,7 +71,7 @@ const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
 const LeadsScreen = () => {
   const navigation = useNavigation();
-  const { fetchPaginatedLeads, updateLead } = useLeads();
+  const { fetchPaginatedLeads, updateLead, createLead } = useLeads();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTab, setActiveTab] = useState('New');
@@ -94,6 +95,24 @@ const LeadsScreen = () => {
   const [isFollowupTypeOpen, setIsFollowupTypeOpen] = useState(false);
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
   const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
+
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    phone: '',
+    status: 'New',
+    service: 'Grooming',
+    nextFollowUp: '',
+    followupTime: '',
+    comments: '',
+    followupType: 'Call',
+    importantLead: false,
+  });
+  const [isCreateStatusOpen, setIsCreateStatusOpen] = useState(false);
+  const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
+  const [isCreateFollowupTypeOpen, setIsCreateFollowupTypeOpen] = useState(false);
+  const [isCreateDatePickerVisible, setIsCreateDatePickerVisible] = useState(false);
+  const [isCreateTimePickerVisible, setIsCreateTimePickerVisible] = useState(false);
 
   // Pagination states
   const [leadsList, setLeadsList] = useState([]);
@@ -187,12 +206,93 @@ const LeadsScreen = () => {
 
   const handleSaveEdit = async () => {
     if (selectedLead) {
+      if (editForm.status === 'Follow Up' && editForm.nextFollowUp && editForm.followupTime) {
+        const today = new Date();
+        const selectedDate = new Date(editForm.nextFollowUp);
+        if (
+          selectedDate.getFullYear() === today.getFullYear() &&
+          selectedDate.getMonth() === today.getMonth() &&
+          selectedDate.getDate() === today.getDate()
+        ) {
+          const match = editForm.followupTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (match) {
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const period = match[3].toUpperCase();
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+            
+            const selectedTime = new Date(today);
+            selectedTime.setHours(hours, minutes, 0, 0);
+            if (selectedTime < today) {
+              alert('You cannot select a past time for today.');
+              return;
+            }
+          }
+        }
+      }
+
       const res = await updateLead(selectedLead.id, editForm);
       if (res.success) {
         fetchLeadsData(0, false);
       }
       setEditModalVisible(false);
       setSelectedLead(null);
+    }
+  };
+
+  const handleSaveCreate = async () => {
+    if (!createForm.name || !createForm.phone) {
+      Alert.alert('Error', 'Name and Phone are required.');
+      return;
+    }
+
+    if (createForm.status === 'Follow Up' && createForm.nextFollowUp && createForm.followupTime) {
+      const today = new Date();
+      const selectedDate = new Date(createForm.nextFollowUp);
+      if (
+        selectedDate.getFullYear() === today.getFullYear() &&
+        selectedDate.getMonth() === today.getMonth() &&
+        selectedDate.getDate() === today.getDate()
+      ) {
+        const match = createForm.followupTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (match) {
+          let hours = parseInt(match[1], 10);
+          const minutes = parseInt(match[2], 10);
+          const period = match[3].toUpperCase();
+          if (period === 'PM' && hours !== 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+          
+          const selectedTime = new Date(today);
+          selectedTime.setHours(hours, minutes, 0, 0);
+          if (selectedTime < today) {
+            alert('You cannot select a past time for today.');
+            return;
+          }
+        }
+      }
+    }
+
+    const res = await createLead({
+      ...createForm,
+      source: 'Manual Entry',
+    });
+    if (res.success) {
+      fetchLeadsData(0, false);
+      setCreateModalVisible(false);
+      setCreateForm({
+        name: '',
+        phone: '',
+        status: 'New',
+        service: 'Grooming',
+        nextFollowUp: '',
+        followupTime: '',
+        comments: '',
+        followupType: 'Call',
+        importantLead: false,
+      });
+    } else {
+      Alert.alert('Error', 'Failed to create lead.');
     }
   };
 
@@ -228,6 +328,14 @@ const LeadsScreen = () => {
       <ScreenHeader
         title="Assigned Leads"
         subtitle={`${totalCount} leads to follow`}
+        rightAction={
+          <TouchableOpacity
+            onPress={() => setCreateModalVisible(true)}
+            style={{ padding: 8 }}
+          >
+            <PlusIcon size={24} color={Colors.primary} />
+          </TouchableOpacity>
+        }
       />
 
       <View style={styles.searchWrap}>
@@ -559,6 +667,262 @@ const LeadsScreen = () => {
                   onPress={handleSaveEdit}
                 >
                   <Text style={styles.saveButtonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={createModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Manual Lead</Text>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: Spacing.huge }}
+            >
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.input}
+                value={createForm.name}
+                onChangeText={text => setCreateForm({ ...createForm, name: text })}
+                placeholder="Lead Name"
+              />
+
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={createForm.phone}
+                onChangeText={text =>
+                  setCreateForm({
+                    ...createForm,
+                    phone: text.replace(/[^0-9+]/g, ''),
+                  })
+                }
+                placeholder="Phone Number"
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.inputLabel}>Service Interest</Text>
+              <TouchableOpacity
+                style={styles.dropdownSelector}
+                onPress={() => setIsCreateServiceOpen(!isCreateServiceOpen)}
+              >
+                <Text style={styles.dropdownSelectorText}>
+                  {createForm.service || 'Select Service'}
+                </Text>
+                <ChevronRightIcon size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+              {isCreateServiceOpen && (
+                <View style={styles.dropdownOptionsContainer}>
+                  {SERVICE_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setCreateForm({ ...createForm, service: opt });
+                        setIsCreateServiceOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          createForm.service === opt &&
+                            styles.dropdownOptionTextActive,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.inputLabel}>Status</Text>
+              <TouchableOpacity
+                style={styles.dropdownSelector}
+                onPress={() => setIsCreateStatusOpen(!isCreateStatusOpen)}
+              >
+                <Text style={styles.dropdownSelectorText}>
+                  {createForm.status || 'Select Status'}
+                </Text>
+                <ChevronRightIcon size={16} color={Colors.textMuted} />
+              </TouchableOpacity>
+              {isCreateStatusOpen && (
+                <ScrollView
+                  style={styles.dropdownOptionsContainerScroll}
+                  nestedScrollEnabled={true}
+                >
+                  {(createForm.service === 'Pet Insurance'
+                    ? [...STATUS_OPTIONS, 'Policy Active']
+                    : STATUS_OPTIONS
+                  ).map(opt => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setCreateForm({ ...createForm, status: opt });
+                        setIsCreateStatusOpen(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          createForm.status === opt &&
+                            styles.dropdownOptionTextActive,
+                        ]}
+                      >
+                        {opt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              {createForm.status === 'Follow Up' && (
+                <View style={styles.followUpContainer}>
+                  <Text style={styles.inputLabel}>Follow-up Type</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsCreateFollowupTypeOpen(!isCreateFollowupTypeOpen)}
+                  >
+                    <Text style={styles.dropdownSelectorText}>
+                      {createForm.followupType || 'Select Type'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                  {isCreateFollowupTypeOpen && (
+                    <View style={styles.dropdownOptionsContainer}>
+                      {FOLLOWUP_TYPES.map(opt => (
+                        <TouchableOpacity
+                          key={opt}
+                          style={styles.dropdownOption}
+                          onPress={() => {
+                            setCreateForm({ ...createForm, followupType: opt });
+                            setIsCreateFollowupTypeOpen(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              createForm.followupType === opt &&
+                                styles.dropdownOptionTextActive,
+                            ]}
+                          >
+                            {opt}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={styles.inputLabel}>Next Follow Up Date</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsCreateDatePickerVisible(true)}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownSelectorText,
+                        !createForm.nextFollowUp && { color: Colors.textMuted },
+                      ]}
+                    >
+                      {createForm.nextFollowUp || 'Select Date'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+
+                  <CustomDatePicker
+                    visible={isCreateDatePickerVisible}
+                    selectedDate={createForm.nextFollowUp}
+                    onClose={() => setIsCreateDatePickerVisible(false)}
+                    onSelect={date => {
+                      setCreateForm({ ...createForm, nextFollowUp: date });
+                      setIsCreateDatePickerVisible(false);
+                    }}
+                  />
+
+                  <Text style={styles.inputLabel}>Follow Up Time</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownSelector}
+                    onPress={() => setIsCreateTimePickerVisible(true)}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownSelectorText,
+                        !createForm.followupTime && { color: Colors.textMuted },
+                      ]}
+                    >
+                      {createForm.followupTime || 'Select Time'}
+                    </Text>
+                    <ChevronRightIcon size={16} color={Colors.textMuted} />
+                  </TouchableOpacity>
+
+                  <CustomTimePicker
+                    visible={isCreateTimePickerVisible}
+                    selectedTime={createForm.followupTime}
+                    onClose={() => setIsCreateTimePickerVisible(false)}
+                    onSelect={time => {
+                      setCreateForm({ ...createForm, followupTime: time });
+                      setIsCreateTimePickerVisible(false);
+                    }}
+                  />
+
+                  <Text style={styles.inputLabel}>Comments</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={createForm.comments}
+                    onChangeText={text =>
+                      setCreateForm({ ...createForm, comments: text })
+                    }
+                    placeholder="Enter your comments..."
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.importantToggle}
+                activeOpacity={0.8}
+                onPress={() =>
+                  setCreateForm({
+                    ...createForm,
+                    importantLead: !createForm.importantLead,
+                  })
+                }
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    createForm.importantLead && styles.checkboxActive,
+                  ]}
+                />
+                <Text style={styles.importantToggleText}>
+                  🔥 Important Hot Lead
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setCreateModalVisible(false)}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveCreate}
+                >
+                  <Text style={styles.saveButtonText}>Create</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

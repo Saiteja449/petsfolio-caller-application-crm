@@ -169,6 +169,25 @@ const ActiveCallScreen = () => {
     }
   };
 
+  const handleManualPick = async () => {
+    try {
+      const [res] = await pick({
+        allowMultiSelection: false,
+        type: [types.audio, types.allFiles],
+        presentationStyle: 'fullScreen',
+      });
+      setRecordedFilePath(res.uri);
+      setRecordedFileName(res.name);
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        // User cancelled picker
+      } else {
+        console.error('DocumentPicker error:', err);
+        Alert.alert('Error', 'Failed to pick recording file.');
+      }
+    }
+  };
+
   const handleAttachRecording = async () => {
     try {
       if (Platform.OS === 'android') {
@@ -202,21 +221,10 @@ const ActiveCallScreen = () => {
         }
       }
 
-      // Fallback to manual document picker
-      const [res] = await pick({
-        allowMultiSelection: false,
-        type: [types.audio, types.allFiles],
-        presentationStyle: 'fullScreen',
-      });
-      setRecordedFilePath(res.uri);
-      setRecordedFileName(res.name);
+      // Fallback to manual document picker if auto fails or iOS
+      await handleManualPick();
     } catch (err) {
-      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
-        // User cancelled picker
-      } else {
-        console.error('DocumentPicker error:', err);
-        Alert.alert('Error', 'Failed to pick recording file.');
-      }
+      console.error('Error attaching recording:', err);
     }
   };
 
@@ -249,6 +257,32 @@ const ActiveCallScreen = () => {
   };
 
   const handleSave = async () => {
+    if (formData.status === 'Follow Up' && formData.nextFollowUp && formData.followupTime) {
+      const today = new Date();
+      const selectedDate = new Date(formData.nextFollowUp);
+      if (
+        selectedDate.getFullYear() === today.getFullYear() &&
+        selectedDate.getMonth() === today.getMonth() &&
+        selectedDate.getDate() === today.getDate()
+      ) {
+        const match = formData.followupTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (match) {
+          let hours = parseInt(match[1], 10);
+          const minutes = parseInt(match[2], 10);
+          const period = match[3].toUpperCase();
+          if (period === 'PM' && hours !== 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+          
+          const selectedTime = new Date(today);
+          selectedTime.setHours(hours, minutes, 0, 0);
+          if (selectedTime < today) {
+            Alert.alert('Invalid Time', 'You cannot select a past time for today.');
+            return;
+          }
+        }
+      }
+    }
+
     setIsSaving(true);
     let res;
 
@@ -344,14 +378,24 @@ const ActiveCallScreen = () => {
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={styles.attachBtn}
-                  onPress={handleAttachRecording}
-                >
-                  <Text style={styles.attachBtnText}>
-                    Attach Audio Recording
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ gap: 10 }}>
+                  <TouchableOpacity
+                    style={styles.attachBtn}
+                    onPress={handleAttachRecording}
+                  >
+                    <Text style={styles.attachBtnText}>
+                      Auto-Fetch Latest Recording
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.attachBtn, { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border }]}
+                    onPress={handleManualPick}
+                  >
+                    <Text style={[styles.attachBtnText, { color: Colors.primary }]}>
+                      Choose File Manually
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
 

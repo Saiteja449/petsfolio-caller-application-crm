@@ -498,4 +498,16 @@ export const LogoutIcon = ({ size = 24, color = Colors.danger }) => (
   </Svg>
 );
 
+export const PlusIcon = ({ size = 24, color = Colors.text }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 5v14M5 12h14"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 export default defaultProps;

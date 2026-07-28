@@ -191,22 +191,44 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
             )
             val sortOrder = "${android.provider.MediaStore.Audio.Media.DATE_ADDED} DESC"
             
+            // Exclude WhatsApp, Telegram and Android internal/cache media folders 
+            // since they trigger constant writes and swamp actual call recordings.
+            val selection = "${android.provider.MediaStore.Audio.Media.DATA} NOT LIKE ? AND ${android.provider.MediaStore.Audio.Media.DATA} NOT LIKE ? AND ${android.provider.MediaStore.Audio.Media.DATA} NOT LIKE ?"
+            val selectionArgs = arrayOf("%WhatsApp%", "%/Android/%", "%Telegram%")
+
             reactApplicationContext.contentResolver.query(
                 uri,
                 projection,
-                null,
-                null,
+                selection,
+                selectionArgs,
                 sortOrder
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val dataColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
+                    val idColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)
                     val nameColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
                     
-                    val filePath = cursor.getString(dataColumn)
+                    val id = cursor.getLong(idColumn)
                     val fileName = cursor.getString(nameColumn)
                     
+                    val contentUri = android.content.ContentUris.withAppendedId(
+                        android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    
+                    // Copy file to internal cache to bypass Android 10+ Scoped Storage restrictions
+                    val cacheFile = java.io.File(reactApplicationContext.cacheDir, fileName)
+                    if (!reactApplicationContext.cacheDir.exists()) {
+                        reactApplicationContext.cacheDir.mkdirs()
+                    }
+                    
+                    reactApplicationContext.contentResolver.openInputStream(contentUri)?.use { input ->
+                        java.io.FileOutputStream(cacheFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    
                     val map = com.facebook.react.bridge.Arguments.createMap()
-                    map.putString("uri", "file://" + filePath)
+                    map.putString("uri", "file://" + cacheFile.absolutePath)
                     map.putString("name", fileName)
                     promise.resolve(map)
                 } else {

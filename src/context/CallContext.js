@@ -87,6 +87,7 @@ export const CallProvider = ({ children }) => {
         );
       }
       let maxTimestamp = lastProcessed;
+      const newlyAddedPhones = new Set();
 
       for (const log of callLogs) {
         const logTimestamp = new Date(log.date).getTime();
@@ -129,8 +130,9 @@ export const CallProvider = ({ children }) => {
             );
           });
 
-          if (!existingLead) {
+          if (!existingLead && !newlyAddedPhones.has(searchPhone)) {
             if (log.callType === 'missed') {
+              newlyAddedPhones.add(searchPhone);
               if (createLeadRef.current) {
                 createLeadRef.current({
                   name:
