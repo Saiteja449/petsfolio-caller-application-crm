@@ -18,6 +18,7 @@ import ContactCard from '../components/ContactCard';
 import SearchBar from '../components/SearchBar';
 import EmptyState from '../components/EmptyState';
 import { useLeads } from '../context/LeadsContext';
+import { useToast } from '../context/ToastContext';
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
@@ -71,7 +72,9 @@ const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
 const LeadsScreen = () => {
   const navigation = useNavigation();
-  const { fetchPaginatedLeads, updateLead, createLead } = useLeads();
+  const { fetchPaginatedLeads, updateLead, createLead, lastUpdateTimestamp } =
+    useLeads();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeTab, setActiveTab] = useState('New');
@@ -110,9 +113,12 @@ const LeadsScreen = () => {
   });
   const [isCreateStatusOpen, setIsCreateStatusOpen] = useState(false);
   const [isCreateServiceOpen, setIsCreateServiceOpen] = useState(false);
-  const [isCreateFollowupTypeOpen, setIsCreateFollowupTypeOpen] = useState(false);
-  const [isCreateDatePickerVisible, setIsCreateDatePickerVisible] = useState(false);
-  const [isCreateTimePickerVisible, setIsCreateTimePickerVisible] = useState(false);
+  const [isCreateFollowupTypeOpen, setIsCreateFollowupTypeOpen] =
+    useState(false);
+  const [isCreateDatePickerVisible, setIsCreateDatePickerVisible] =
+    useState(false);
+  const [isCreateTimePickerVisible, setIsCreateTimePickerVisible] =
+    useState(false);
 
   // Pagination states
   const [leadsList, setLeadsList] = useState([]);
@@ -122,6 +128,7 @@ const LeadsScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [tabCounts, setTabCounts] = useState({});
 
   // Debounce search input
@@ -180,10 +187,10 @@ const LeadsScreen = () => {
     }
   };
 
-  // Fetch leads on activeTab or search changes
+  // Fetch leads on activeTab, search, or external update changes
   useEffect(() => {
     fetchLeadsData(0, false);
-  }, [activeTab, debouncedSearch]);
+  }, [activeTab, debouncedSearch, lastUpdateTimestamp]);
 
   const handleEditLead = lead => {
     setSelectedLead(lead);
@@ -206,7 +213,11 @@ const LeadsScreen = () => {
 
   const handleSaveEdit = async () => {
     if (selectedLead) {
-      if (editForm.status === 'Follow Up' && editForm.nextFollowUp && editForm.followupTime) {
+      if (
+        editForm.status === 'Follow Up' &&
+        editForm.nextFollowUp &&
+        editForm.followupTime
+      ) {
         const today = new Date();
         const selectedDate = new Date(editForm.nextFollowUp);
         if (
@@ -221,7 +232,7 @@ const LeadsScreen = () => {
             const period = match[3].toUpperCase();
             if (period === 'PM' && hours !== 12) hours += 12;
             if (period === 'AM' && hours === 12) hours = 0;
-            
+
             const selectedTime = new Date(today);
             selectedTime.setHours(hours, minutes, 0, 0);
             if (selectedTime < today) {
@@ -232,12 +243,20 @@ const LeadsScreen = () => {
         }
       }
 
-      const res = await updateLead(selectedLead.id, editForm);
-      if (res.success) {
-        fetchLeadsData(0, false);
+      setIsSaving(true);
+      try {
+        const res = await updateLead(selectedLead.id, editForm);
+        if (res.success) {
+          showToast('Lead updated successfully', 'success');
+          fetchLeadsData(0, false);
+        } else {
+          showToast('Failed to update lead', 'error');
+        }
+        setEditModalVisible(false);
+        setSelectedLead(null);
+      } finally {
+        setIsSaving(false);
       }
-      setEditModalVisible(false);
-      setSelectedLead(null);
     }
   };
 
@@ -247,7 +266,11 @@ const LeadsScreen = () => {
       return;
     }
 
-    if (createForm.status === 'Follow Up' && createForm.nextFollowUp && createForm.followupTime) {
+    if (
+      createForm.status === 'Follow Up' &&
+      createForm.nextFollowUp &&
+      createForm.followupTime
+    ) {
       const today = new Date();
       const selectedDate = new Date(createForm.nextFollowUp);
       if (
@@ -262,7 +285,7 @@ const LeadsScreen = () => {
           const period = match[3].toUpperCase();
           if (period === 'PM' && hours !== 12) hours += 12;
           if (period === 'AM' && hours === 12) hours = 0;
-          
+
           const selectedTime = new Date(today);
           selectedTime.setHours(hours, minutes, 0, 0);
           if (selectedTime < today) {
@@ -273,26 +296,35 @@ const LeadsScreen = () => {
       }
     }
 
-    const res = await createLead({
-      ...createForm,
-      source: 'Manual Entry',
-    });
-    if (res.success) {
-      fetchLeadsData(0, false);
-      setCreateModalVisible(false);
-      setCreateForm({
-        name: '',
-        phone: '',
-        status: 'New',
-        service: 'Grooming',
-        nextFollowUp: '',
-        followupTime: '',
-        comments: '',
-        followupType: 'Call',
-        importantLead: false,
+    setIsSaving(true);
+    try {
+      const res = await createLead({
+        ...createForm,
+        source: 'Mobile App',
       });
-    } else {
-      Alert.alert('Error', 'Failed to create lead.');
+      if (res.success) {
+        showToast('Lead created successfully', 'success');
+        setCreateModalVisible(false);
+        setCreateForm({
+          name: '',
+          phone: '',
+          status: 'New',
+          service: '',
+          nextFollowUp: '',
+          followupTime: '',
+          comments: '',
+          followupType: '',
+          importantLead: false,
+        });
+        fetchLeadsData(0, false);
+      } else {
+        showToast('Failed to create lead', 'error');
+      }
+    } catch (error) {
+      console.error('Save create error:', error);
+      showToast('An error occurred while creating', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -663,10 +695,15 @@ const LeadsScreen = () => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.saveButton}
+                  style={[styles.saveButton, isSaving && { opacity: 0.5 }]}
                   onPress={handleSaveEdit}
+                  disabled={isSaving}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -693,7 +730,9 @@ const LeadsScreen = () => {
               <TextInput
                 style={styles.input}
                 value={createForm.name}
-                onChangeText={text => setCreateForm({ ...createForm, name: text })}
+                onChangeText={text =>
+                  setCreateForm({ ...createForm, name: text })
+                }
                 placeholder="Lead Name"
               />
 
@@ -792,7 +831,9 @@ const LeadsScreen = () => {
                   <Text style={styles.inputLabel}>Follow-up Type</Text>
                   <TouchableOpacity
                     style={styles.dropdownSelector}
-                    onPress={() => setIsCreateFollowupTypeOpen(!isCreateFollowupTypeOpen)}
+                    onPress={() =>
+                      setIsCreateFollowupTypeOpen(!isCreateFollowupTypeOpen)
+                    }
                   >
                     <Text style={styles.dropdownSelectorText}>
                       {createForm.followupType || 'Select Type'}
@@ -919,10 +960,15 @@ const LeadsScreen = () => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.saveButton}
+                  style={[styles.saveButton, isSaving && { opacity: 0.5 }]}
                   onPress={handleSaveCreate}
+                  disabled={isSaving}
                 >
-                  <Text style={styles.saveButtonText}>Create</Text>
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>Create</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -930,7 +976,7 @@ const LeadsScreen = () => {
         </View>
       </Modal>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.fab}
         onPress={() => setIsDialerVisible(true)}
         activeOpacity={0.8}
@@ -941,7 +987,7 @@ const LeadsScreen = () => {
       <DialerModal
         visible={isDialerVisible}
         onClose={() => setIsDialerVisible(false)}
-      />
+      /> */}
     </View>
   );
 };

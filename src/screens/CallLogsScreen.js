@@ -133,7 +133,7 @@ const CallLogsScreen = () => {
         )}
       />
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.fab}
         onPress={() => setIsDialerVisible(true)}
         activeOpacity={0.8}
@@ -144,7 +144,7 @@ const CallLogsScreen = () => {
       <DialerModal
         visible={isDialerVisible}
         onClose={() => setIsDialerVisible(false)}
-      />
+      /> */}
     </View>
   );
 };

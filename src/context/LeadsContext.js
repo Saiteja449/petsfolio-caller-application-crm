@@ -10,6 +10,7 @@ export const LeadsProvider = ({ children }) => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [lastUpdateTimestamp, setLastUpdateTimestamp] = useState(Date.now());
 
   const fetchLeads = async () => {
     if (!user) return;
@@ -107,109 +108,109 @@ export const LeadsProvider = ({ children }) => {
         };
       }
 
-      // Fire and forget API calls
-      (async () => {
-        try {
-          let updatedLeadData;
-          
-          if (updatedFields.recordingPath) {
-            const fetchResponse = await fetch(`${API_ENDPOINTS.LEADS.BASE}/${id}`, {
-              method: 'PUT',
-              headers: {
-                Authorization: `Bearer ${user?.token}`,
-              },
-              body: requestPayload,
-            });
-            const jsonResponse = await fetchResponse.json();
-            if (!fetchResponse.ok) throw new Error(jsonResponse.message || 'Update failed');
-            updatedLeadData = jsonResponse.data || jsonResponse;
-          } else {
-            const response = await axios.put(
-              `${API_ENDPOINTS.LEADS.BASE}/${id}`,
-              requestPayload,
-              requestConfig,
+      // Await API calls
+      try {
+        let updatedLeadData;
+        
+        if (updatedFields.recordingPath) {
+          const fetchResponse = await fetch(`${API_ENDPOINTS.LEADS.BASE}/${id}`, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${user?.token}`,
+            },
+            body: requestPayload,
+          });
+          const jsonResponse = await fetchResponse.json();
+          if (!fetchResponse.ok) throw new Error(jsonResponse.message || 'Update failed');
+          updatedLeadData = jsonResponse.data || jsonResponse;
+        } else {
+          const response = await axios.put(
+            `${API_ENDPOINTS.LEADS.BASE}/${id}`,
+            requestPayload,
+            requestConfig,
+          );
+          updatedLeadData = response.data.data || response.data;
+        }
+
+        const authorName = user?.name || 'Mobile App';
+
+        if (updatedFields.status === 'Follow Up') {
+          await axios.post(
+            API_ENDPOINTS.FOLLOWUPS.BASE,
+            {
+              leadId: id,
+              leadName: updatedLeadData.name || existingLead.name,
+              type: updatedFields.followupType || 'Call',
+              date: updatedFields.nextFollowUp,
+              time: '11:00 AM',
+              priority: updatedFields.importantLead ? 'High' : 'Medium',
+              notes:
+                updatedFields.comments ||
+                `Routine followup scheduled via ${
+                  updatedFields.followupType || 'Call'
+                }`,
+              author: authorName,
+              done: false,
+            },
+            config,
+          );
+        } else {
+          const changes = [];
+          if (
+            updatedFields.assignedTo &&
+            updatedFields.assignedTo !== existingLead.assignedTo
+          ) {
+            changes.push(
+              `assignee from "${existingLead.assignedTo}" to "${updatedFields.assignedTo}"`,
             );
-            updatedLeadData = response.data.data || response.data;
+          }
+          if (
+            updatedFields.status &&
+            updatedFields.status !== existingLead.status
+          ) {
+            changes.push(`status to "${updatedFields.status}"`);
+          }
+          if (
+            updatedFields.importantLead !== undefined &&
+            updatedFields.importantLead !== existingLead.importantLead
+          ) {
+            changes.push(
+              updatedFields.importantLead
+                ? 'marked as Important Hot Lead'
+                : 'removed Important Hot Lead status',
+            );
           }
 
-          const authorName = user?.name || 'Mobile App';
-
-          if (updatedFields.status === 'Follow Up') {
+          if (changes.length > 0) {
+            const now = new Date();
             await axios.post(
               API_ENDPOINTS.FOLLOWUPS.BASE,
               {
                 leadId: id,
                 leadName: updatedLeadData.name || existingLead.name,
-                type: updatedFields.followupType || 'Call',
-                date: updatedFields.nextFollowUp,
-                time: '11:00 AM',
-                priority: updatedFields.importantLead ? 'High' : 'Medium',
-                notes:
-                  updatedFields.comments ||
-                  `Routine followup scheduled via ${
-                    updatedFields.followupType || 'Call'
-                  }`,
+                type: 'Lead Edited',
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                priority: 'Low',
+                notes: `Updated properties: ${changes.join(
+                  ', ',
+                )} by ${authorName}`,
                 author: authorName,
-                done: false,
+                done: true,
               },
               config,
             );
-          } else {
-            const changes = [];
-            if (
-              updatedFields.assignedTo &&
-              updatedFields.assignedTo !== existingLead.assignedTo
-            ) {
-              changes.push(
-                `assignee from "${existingLead.assignedTo}" to "${updatedFields.assignedTo}"`,
-              );
-            }
-            if (
-              updatedFields.status &&
-              updatedFields.status !== existingLead.status
-            ) {
-              changes.push(`status to "${updatedFields.status}"`);
-            }
-            if (
-              updatedFields.importantLead !== undefined &&
-              updatedFields.importantLead !== existingLead.importantLead
-            ) {
-              changes.push(
-                updatedFields.importantLead
-                  ? 'marked as Important Hot Lead'
-                  : 'removed Important Hot Lead status',
-              );
-            }
-
-            if (changes.length > 0) {
-              const now = new Date();
-              await axios.post(
-                API_ENDPOINTS.FOLLOWUPS.BASE,
-                {
-                  leadId: id,
-                  leadName: updatedLeadData.name || existingLead.name,
-                  type: 'Lead Edited',
-                  date: now.toISOString().split('T')[0],
-                  time: now.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }),
-                  priority: 'Low',
-                  notes: `Updated properties: ${changes.join(
-                    ', ',
-                  )} by ${authorName}`,
-                  author: authorName,
-                  done: true,
-                },
-                config,
-              );
-            }
           }
-        } catch (e) {
-          console.error('Background update failed', e?.response?.data || e.message || e);
         }
-      })();
+      } catch (e) {
+        console.error('Background update failed', e?.response?.data || e.message || e);
+        return { success: false, error: e };
+      }
 
+      setLastUpdateTimestamp(Date.now());
       return { success: true, data: optimisticLead };
     } catch (error) {
       console.error('Error updating lead:', error);
@@ -267,40 +268,40 @@ export const LeadsProvider = ({ children }) => {
         };
       }
 
-      // Fire and forget
+      // Await backend create call
       if (leadData.recordingPath) {
-        fetch(API_ENDPOINTS.LEADS.BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${user?.token}`,
-          },
-          body: requestPayload,
-        })
-          .then(async (response) => {
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Create failed');
-            const actualLead = data.data || data;
-            setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
-          })
-          .catch(err => {
-            console.error('Background create failed (fetch)', err);
-            setLeads(prev => prev.filter(l => l.id !== tempId));
-            fetchLeads();
+        try {
+          const response = await fetch(API_ENDPOINTS.LEADS.BASE, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${user?.token}`,
+            },
+            body: requestPayload,
           });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'Create failed');
+          const actualLead = data.data || data;
+          setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
+        } catch (err) {
+          console.error('Background create failed (fetch)', err);
+          setLeads(prev => prev.filter(l => l.id !== tempId));
+          fetchLeads();
+          return { success: false, error: err };
+        }
       } else {
-        axios
-          .post(API_ENDPOINTS.LEADS.BASE, requestPayload, requestConfig)
-          .then(response => {
-            const actualLead = response.data.data || response.data;
-            setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
-          })
-          .catch(err => {
-            console.error('Background create failed (axios)', err?.response?.data || err);
-            setLeads(prev => prev.filter(l => l.id !== tempId));
-            if (err.response && err.response.status === 400) fetchLeads();
-          });
+        try {
+          const response = await axios.post(API_ENDPOINTS.LEADS.BASE, requestPayload, requestConfig);
+          const actualLead = response.data.data || response.data;
+          setLeads(prev => prev.map(l => (l.id === tempId ? actualLead : l)));
+        } catch (err) {
+          console.error('Background create failed (axios)', err?.response?.data || err);
+          setLeads(prev => prev.filter(l => l.id !== tempId));
+          if (err.response && err.response.status === 400) fetchLeads();
+          return { success: false, error: err };
+        }
       }
 
+      setLastUpdateTimestamp(Date.now());
       return { success: true, data: optimisticNewLead };
     } catch (error) {
       console.error('Error creating lead:', error);
@@ -356,6 +357,7 @@ export const LeadsProvider = ({ children }) => {
         setLeads,
         updateLead,
         createLead,
+        lastUpdateTimestamp,
       }}
     >
       {children}

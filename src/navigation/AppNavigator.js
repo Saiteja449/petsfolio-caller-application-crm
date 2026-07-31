@@ -14,6 +14,7 @@ import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ActiveCallScreen from '../screens/ActiveCallScreen';
 import SplashScreen from '../screens/SplashScreen';
 import { useAuth } from '../context/AuthContext';
+import { useCalls } from '../context/CallContext';
 
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
@@ -98,8 +99,14 @@ const TabNavigator = () => (
 
 const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isSyncingCalls } = useCalls();
 
   if (isLoading) {
+    return <SplashScreen />;
+  }
+
+  // Only wait for call syncing if the user is actually logged in
+  if (isAuthenticated && isSyncingCalls) {
     return <SplashScreen />;
   }
 

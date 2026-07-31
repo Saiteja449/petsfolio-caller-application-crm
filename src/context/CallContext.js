@@ -25,6 +25,8 @@ const CallContext = createContext(null);
 export const CallProvider = ({ children }) => {
   const [callLogs, setCallLogs] = useState([]);
   const [pendingLeadUpdate, setPendingLeadUpdate] = useState(null);
+  const [isSyncingCalls, setIsSyncingCalls] = useState(true);
+  const [hasFetchedCalls, setHasFetchedCalls] = useState(false);
 
   const { leads, hasFetched, createLead, updateLead } = useLeads();
   const { user } = useAuth();
@@ -72,7 +74,14 @@ export const CallProvider = ({ children }) => {
   }, [createLead]);
 
   const syncNewCallsToCRM = useCallback(async () => {
-    if (!hasFetched || callLogs.length === 0) return;
+    if (!hasFetched || !hasFetchedCalls) return;
+    
+    if (callLogs.length === 0) {
+      setIsSyncingCalls(false);
+      return;
+    }
+    
+    setIsSyncingCalls(true);
 
     try {
       const lastStr = await AsyncStorage.getItem('lastProcessedCallTimestamp');
@@ -159,8 +168,10 @@ export const CallProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Sync new calls error', err);
+    } finally {
+      setIsSyncingCalls(false);
     }
-  }, [hasFetched, callLogs]);
+  }, [hasFetched, hasFetchedCalls, callLogs]);
 
   useEffect(() => {
     syncNewCallsToCRM();
@@ -273,10 +284,17 @@ export const CallProvider = ({ children }) => {
             setCallLogs(formattedLogs);
           } catch (e) {
             console.error('Failed to fetch call logs', e);
+          } finally {
+            setHasFetchedCalls(true);
           }
+        } else {
+          setHasFetchedCalls(true);
         }
+      } else {
+        setHasFetchedCalls(true);
       }
     };
+
     fetchCallLogs();
   }, []);
 
@@ -339,6 +357,7 @@ export const CallProvider = ({ children }) => {
         getCallById,
         pendingLeadUpdate,
         clearPendingLeadUpdate,
+        isSyncingCalls,
       }}
     >
       {children}

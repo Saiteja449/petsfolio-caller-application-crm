@@ -16,6 +16,7 @@ import {
 import Text from '../components/AppText';
 import { useCalls } from '../context/CallContext';
 import { useLeads } from '../context/LeadsContext';
+import { useToast } from '../context/ToastContext';
 import { Colors } from '../styles/Colors';
 import { Fonts } from '../styles/Fonts';
 import { Spacing } from '../styles/Spacing';
@@ -55,6 +56,7 @@ const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 const ActiveCallScreen = () => {
   const { pendingLeadUpdate, clearPendingLeadUpdate } = useCalls();
   const { leads, updateLead, createLead } = useLeads();
+  const { showToast } = useToast();
 
   const [recordedFilePath, setRecordedFilePath] = useState(null);
   const [recordedFileName, setRecordedFileName] = useState('');
@@ -304,11 +306,12 @@ const ActiveCallScreen = () => {
     }
     setIsSaving(false);
     if (res.success) {
+      showToast('Lead saved successfully', 'success');
       clearPendingLeadUpdate();
       setRecordedFilePath(null);
       setRecordedFileName('');
     } else {
-      Alert.alert('Error', 'Failed to save lead details.');
+      showToast('Failed to save lead details', 'error');
     }
   };
 

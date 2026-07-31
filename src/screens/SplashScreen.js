@@ -5,23 +5,24 @@ import {
   StyleSheet,
   Animated,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Colors } from '../styles/Colors';
 
 const SplashScreen = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 1000,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 4,
+        friction: 5,
         tension: 40,
         useNativeDriver: true,
       }),
@@ -39,11 +40,15 @@ const SplashScreen = () => {
           },
         ]}
       >
-        <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>📞</Text>
+        <View style={styles.imageWrapper}>
+          <Image 
+            source={require('../../assets/images/Logo.png')} 
+            style={styles.logoImage} 
+            resizeMode="contain" 
+          />
         </View>
         <Text style={styles.title}>Petsfolio</Text>
-        <Text style={styles.subtitle}>Caller & Manager</Text>
+        <Text style={styles.subtitle}>Sales Manager</Text>
       </Animated.View>
 
       <Animated.View
@@ -72,40 +77,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 60,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  imageWrapper: {
+    width: 140,
+    height: 140,
     backgroundColor: Colors.white,
+    borderRadius: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    elevation: 8,
+    marginBottom: 24,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    padding: 10,
   },
-  iconText: {
-    fontSize: 50,
+  logoImage: {
+    width: 100,
+    height: 100,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '800',
     color: Colors.white,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: Colors.borderLight,
+    fontSize: 18,
+    color: 'rgba(255, 255, 255, 0.85)',
     marginTop: 8,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    fontWeight: '500',
   },
   loadingText: {
-    color: Colors.borderLight,
+    color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 15,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
 

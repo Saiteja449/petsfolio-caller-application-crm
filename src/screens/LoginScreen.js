@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import Text from '../components/AppText';
 import CustomButton from '../components/CustomButton';
@@ -54,8 +55,15 @@ const LoginScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
+          <View style={styles.imageWrapper}>
+            <Image 
+              source={require('../../assets/images/Logo.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
+          </View>
           <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to your account</Text>
+          <Text style={styles.subtitle}>Log in to Petsfolio Sales Manager</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -102,17 +110,39 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.xxxl,
+    alignItems: 'center',
+  },
+  imageWrapper: {
+    width: 100,
+    height: 100,
+    backgroundColor: Colors.white,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    elevation: 6,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    padding: 8,
+  },
+  logoImage: {
+    width: 70,
+    height: 70,
   },
   title: {
     fontSize: Fonts.sizes.xxl,
     fontFamily: Fonts.family.bold,
     color: Colors.text,
     marginBottom: Spacing.sm,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: Fonts.sizes.md,
     color: Colors.textSecondary,
     fontFamily: Fonts.family.regular,
+    textAlign: 'center',
   },
   formContainer: {
     backgroundColor: Colors.card,
