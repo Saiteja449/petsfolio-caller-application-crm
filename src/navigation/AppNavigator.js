@@ -12,6 +12,7 @@ import CallDetailsScreen from '../screens/CallDetailsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ActiveCallScreen from '../screens/ActiveCallScreen';
+import PostCallPopupScreen from '../screens/PostCallPopupScreen';
 import SplashScreen from '../screens/SplashScreen';
 import { useAuth } from '../context/AuthContext';
 import { useCalls } from '../context/CallContext';
@@ -128,6 +129,7 @@ const AppNavigator = () => {
         <>
           <IncomingCallScreen />
           <ActiveCallScreen />
+          <PostCallPopupScreen />
         </>
       )}
     </View>

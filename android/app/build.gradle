@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "kotlin-kapt"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -116,4 +117,9 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Room Database for post-call event persistence
+    implementation("androidx.room:room-runtime:${rootProject.ext.roomVersion}")
+    implementation("androidx.room:room-ktx:${rootProject.ext.roomVersion}")
+    kapt("androidx.room:room-compiler:${rootProject.ext.roomVersion}")
 }

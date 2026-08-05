@@ -300,4 +300,79 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
             promise.resolve(0)
         }
     }
+
+    @ReactMethod
+    fun isXiaomiDevice(promise: Promise) {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val brand = Build.BRAND.lowercase()
+        val isXiaomi = manufacturer.contains("xiaomi") || 
+                       manufacturer.contains("redmi") || 
+                       manufacturer.contains("poco") || 
+                       brand.contains("xiaomi") || 
+                       brand.contains("redmi") || 
+                       brand.contains("poco")
+        promise.resolve(isXiaomi)
+    }
+
+    @ReactMethod
+    fun openAutostartSettings(promise: Promise) {
+        try {
+            val intent = Intent().apply {
+                component = android.content.ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                )
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            try {
+                // Fallback to app info settings if specific security center fails
+                val intent = Intent().apply {
+                    action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    data = android.net.Uri.fromParts("package", reactApplicationContext.packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(false)
+            } catch (ex: Exception) {
+                promise.reject("ERROR", "Could not open settings: ${ex.message}")
+            }
+        }
+    }
+
+    @ReactMethod
+    fun checkOverlayPermission(promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val canDraw = android.provider.Settings.canDrawOverlays(reactApplicationContext)
+                promise.resolve(canDraw)
+            } else {
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun requestOverlayPermission(promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:${reactApplicationContext.packageName}")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(true)
+            } else {
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            promise.reject("ERROR", "Could not open overlay settings: ${e.message}")
+        }
+    }
 }

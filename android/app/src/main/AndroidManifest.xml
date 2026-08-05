@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -60,24 +62,21 @@
         </intent-filter>
       </activity>
 
-      <service
-          android:name=".CallService"
-          android:permission="android.permission.BIND_INCALL_SERVICE"
+      <receiver
+          android:name=".CallReceiver"
+          android:enabled="true"
           android:exported="true">
-          <meta-data
-              android:name="android.telecom.IN_CALL_SERVICE_UI"
-              android:value="true" />
-          <meta-data
-              android:name="android.telecom.IN_CALL_SERVICE_RINGING"
-              android:value="true" />
           <intent-filter>
-              <action android:name="android.telecom.InCallService" />
+              <action android:name="android.intent.action.PHONE_STATE" />
           </intent-filter>
-      </service>
+      </receiver>
 
-      <receiver android:name=".CallActionReceiver" android:exported="false">
+      <receiver
+          android:name=".BootReceiver"
+          android:enabled="true"
+          android:exported="true">
           <intent-filter>
-              <action android:name="ACTION_END_CALL" />
+              <action android:name="android.intent.action.BOOT_COMPLETED" />
           </intent-filter>
       </receiver>
     </application>
