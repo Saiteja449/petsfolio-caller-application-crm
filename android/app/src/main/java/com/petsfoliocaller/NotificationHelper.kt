@@ -94,4 +94,32 @@ object NotificationHelper {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID_POST_CALL)
     }
+
+    private const val MONITOR_CHANNEL_ID = "call_monitor_channel"
+    private const val NOTIFICATION_ID_MONITOR = 1004
+
+    fun getMonitorNotification(context: Context): android.app.Notification {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Call Monitoring Service"
+            val descriptionText = "Ensures background call detection functions properly"
+            val importance = NotificationManager.IMPORTANCE_LOW
+            val channel = NotificationChannel(MONITOR_CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                setSound(null, null)
+            }
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val pendingIntent = getMainActivityIntent(context)
+        return NotificationCompat.Builder(context, MONITOR_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("Call Detection Active")
+            .setContentText("Monitoring calls to log CRM lead details.")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .build()
+    }
 }

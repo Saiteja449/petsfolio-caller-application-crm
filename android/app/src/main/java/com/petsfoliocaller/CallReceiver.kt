@@ -33,6 +33,9 @@ class CallReceiver : BroadcastReceiver() {
             val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
             Log.d(TAG, "PHONE_STATE changed to: $state")
 
+            // Auto-start or keep CallMonitorService alive during call events
+            CallMonitorService.start(context)
+
             if (state == TelephonyManager.EXTRA_STATE_IDLE) {
                 Log.d(TAG, "Call ended (IDLE state detected). Scheduling call log query...")
                 

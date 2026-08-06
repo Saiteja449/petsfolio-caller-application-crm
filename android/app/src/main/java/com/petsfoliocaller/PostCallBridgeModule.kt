@@ -1,5 +1,6 @@
 package com.petsfoliocaller
 
+import android.content.Context
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -147,6 +148,39 @@ class PostCallBridgeModule(reactContext: ReactApplicationContext) : ReactContext
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("DB_ERROR", "Failed to purge old events: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun startCallMonitorService(promise: Promise) {
+        try {
+            CallMonitorService.start(reactApplicationContext)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SERVICE_ERROR", "Failed to start service: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun stopCallMonitorService(promise: Promise) {
+        try {
+            CallMonitorService.stop(reactApplicationContext)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SERVICE_ERROR", "Failed to stop service: ${e.message}")
+        }
+    }
+
+    @ReactMethod
+    fun isCallMonitorServiceRunning(promise: Promise) {
+        try {
+            val manager = reactApplicationContext.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            @Suppress("DEPRECATION")
+            val runningServices = manager.getRunningServices(Integer.MAX_VALUE)
+            val isRunning = runningServices.any { it.service.className == CallMonitorService::class.java.name }
+            promise.resolve(isRunning)
+        } catch (e: Exception) {
+            promise.resolve(false)
         }
     }
 

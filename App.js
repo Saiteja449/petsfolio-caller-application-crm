@@ -16,8 +16,12 @@ import {
   isXiaomiDevice, 
   openAutostartSettings, 
   checkOverlayPermission, 
-  requestOverlayPermission 
+  requestOverlayPermission,
+  checkBatteryOptimizationExempt,
+  requestBatteryOptimizationExempt,
+  openOemAutostartSettings
 } from './src/utils/DefaultDialer';
+import { startCallMonitorService } from './src/utils/PostCallBridge';
 import { Colors } from './src/styles/Colors';
 
 const App = () => {
@@ -44,6 +48,63 @@ const App = () => {
               PermissionsAndroid.RESULTS.GRANTED
           ) {
             console.log('Permissions granted');
+
+            // Start foreground call monitoring service
+            try {
+              await startCallMonitorService();
+              console.log('Foreground Call Monitor Service started');
+            } catch (serviceErr) {
+              console.warn('Failed to start call monitor service:', serviceErr);
+            }
+
+            const checkBatteryAndOemSettings = async () => {
+              const isBatteryExempt = await checkBatteryOptimizationExempt();
+              if (!isBatteryExempt) {
+                Alert.alert(
+                  'Battery Optimization Exemption',
+                  'To ensure call logging works reliably in the background, please exclude Petsfolio from battery optimizations.',
+                  [
+                    { 
+                      text: 'Later', 
+                      style: 'cancel',
+                      onPress: () => checkOemAutostart()
+                    },
+                    { 
+                      text: 'Exclude App', 
+                      onPress: async () => {
+                        await requestBatteryOptimizationExempt();
+                        setTimeout(() => checkOemAutostart(), 3000);
+                      }
+                    }
+                  ]
+                );
+              } else {
+                await checkOemAutostart();
+              }
+            };
+
+            const checkOemAutostart = async () => {
+              const isXiaomi = await isXiaomiDevice();
+              const manufacturer = Platform.constants?.Manufacturer?.toLowerCase() || '';
+              const isKnownOem = isXiaomi || 
+                                 manufacturer.includes('oppo') || 
+                                 manufacturer.includes('vivo') || 
+                                 manufacturer.includes('realme') || 
+                                 manufacturer.includes('oneplus') || 
+                                 manufacturer.includes('samsung');
+                                 
+              if (isKnownOem) {
+                Alert.alert(
+                  'Background Permissions Required',
+                  'To reliably receive calls when the app is closed, please enable "Autostart" and "Background Popups" in your system settings.',
+                  [
+                    { text: 'Later', style: 'cancel' },
+                    { text: 'Open Settings', onPress: () => openOemAutostartSettings() }
+                  ]
+                );
+              }
+            };
+
             // Check Overlay (Appear on top) permission
             const hasOverlay = await checkOverlayPermission();
             if (!hasOverlay) {
@@ -51,42 +112,22 @@ const App = () => {
                 'Appear on Top Permission Required',
                 'To automatically display lead popups after a call ends, please enable the "Appear on top" (Display over other apps) permission.',
                 [
-                  { text: 'Later', style: 'cancel' },
+                  { 
+                    text: 'Later', 
+                    style: 'cancel',
+                    onPress: () => checkBatteryAndOemSettings()
+                  },
                   { 
                     text: 'Open Settings', 
                     onPress: async () => {
                       await requestOverlayPermission();
-                      // After overlay, check Xiaomi Autostart
-                      const isXiaomi = await isXiaomiDevice();
-                      if (isXiaomi) {
-                        setTimeout(async () => {
-                          Alert.alert(
-                            'Xiaomi Background Autostart',
-                            'Please also enable the "Autostart" permission in settings to allow call detection when the app is closed.',
-                            [
-                              { text: 'Later', style: 'cancel' },
-                              { text: 'Open Settings', onPress: () => openAutostartSettings() },
-                            ]
-                          );
-                        }, 2500);
-                      }
+                      setTimeout(() => checkBatteryAndOemSettings(), 3000);
                     }
                   },
                 ]
               );
             } else {
-              // Overlay already granted, check Xiaomi Autostart directly
-              const isXiaomi = await isXiaomiDevice();
-              if (isXiaomi) {
-                Alert.alert(
-                  'Xiaomi Background Autostart',
-                  'To reliably detect call ends and show lead popups when the app is closed, please enable "Autostart" in your phone settings.',
-                  [
-                    { text: 'Later', style: 'cancel' },
-                    { text: 'Open Settings', onPress: () => openAutostartSettings() },
-                  ]
-                );
-              }
+              await checkBatteryAndOemSettings();
             }
           } else {
             console.log('Permissions denied');

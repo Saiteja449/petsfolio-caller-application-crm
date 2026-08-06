@@ -68,3 +68,27 @@ export const updateSyncStatus = (eventId, status) => {
 export const purgeOldEvents = () => {
   return PostCallBridge.purgeOldEvents();
 };
+
+/**
+ * Start the background CallMonitorService (Foreground Service).
+ * @returns {Promise<boolean>}
+ */
+export const startCallMonitorService = () => {
+  return PostCallBridge.startCallMonitorService();
+};
+
+/**
+ * Stop the background CallMonitorService.
+ * @returns {Promise<boolean>}
+ */
+export const stopCallMonitorService = () => {
+  return PostCallBridge.stopCallMonitorService();
+};
+
+/**
+ * Check if the background CallMonitorService is running.
+ * @returns {Promise<boolean>}
+ */
+export const isCallMonitorServiceRunning = () => {
+  return PostCallBridge.isCallMonitorServiceRunning();
+};

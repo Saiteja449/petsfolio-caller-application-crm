@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import java.io.File
 import java.io.IOException
 import com.facebook.react.bridge.ActivityEventListener
@@ -341,6 +342,99 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
             }
         }
     }
+
+    @ReactMethod
+    fun checkBatteryOptimizationExempt(promise: Promise) {
+        try {
+            val pm = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val isExempt = pm.isIgnoringBatteryOptimizations(reactApplicationContext.packageName)
+                promise.resolve(isExempt)
+            } else {
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            promise.resolve(true)
+        }
+    }
+
+    @ReactMethod
+    fun requestBatteryOptimizationExempt(promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                val isExempt = pm.isIgnoringBatteryOptimizations(reactApplicationContext.packageName)
+                if (!isExempt) {
+                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = android.net.Uri.parse("package:${reactApplicationContext.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    reactApplicationContext.startActivity(intent)
+                    promise.resolve(true)
+                    return
+                }
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(false)
+            } catch (ex: Exception) {
+                promise.reject("ERROR", "Could not open settings: ${ex.message}")
+            }
+        }
+    }
+
+    @ReactMethod
+    fun openOemAutostartSettings(promise: Promise) {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val intents = mutableListOf<Intent>()
+
+        when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") -> {
+                intents.add(Intent().setComponent(android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")))
+            }
+            manufacturer.contains("oppo") || manufacturer.contains("realme") -> {
+                intents.add(Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")))
+                intents.add(Intent().setComponent(android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")))
+                intents.add(Intent().setComponent(android.content.ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")))
+                intents.add(Intent().setComponent(android.content.ComponentName("com.coloros.settings", "com.coloros.settings.backgroundclean.BackgroundCleanActivity")))
+            }
+            manufacturer.contains("vivo") -> {
+                intents.add(Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")))
+                intents.add(Intent().setComponent(android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")))
+                intents.add(Intent().setComponent(android.content.ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManagerActivity")))
+            }
+            manufacturer.contains("oneplus") -> {
+                intents.add(Intent().setComponent(android.content.ComponentName("com.oneplus.security", "com.oneplus.security.chainlaunch.smartlaunch.SmartLaunchAppListActivity")))
+            }
+        }
+
+        // Add fallback standard app info settings
+        val appSettingsIntent = Intent().apply {
+            action = android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            data = android.net.Uri.fromParts("package", reactApplicationContext.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        intents.add(appSettingsIntent)
+
+        for (intent in intents) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(true)
+                return
+            } catch (e: Exception) {
+                // Try next intent
+                Log.d("DefaultDialerModule", "Failed intent: ${intent.component?.className ?: "app info"}")
+            }
+        }
+        promise.reject("ERROR", "Could not open any setting activity")
+    }
+
 
     @ReactMethod
     fun checkOverlayPermission(promise: Promise) {

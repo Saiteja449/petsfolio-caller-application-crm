@@ -100,3 +100,39 @@ export const makeCall = async (phoneNumber) => {
     return false;
   }
 };
+
+export const checkBatteryOptimizationExempt = async () => {
+  if (Platform.OS === 'android' && DefaultDialer?.checkBatteryOptimizationExempt) {
+    try {
+      return await DefaultDialer.checkBatteryOptimizationExempt();
+    } catch (error) {
+      console.error('Failed to check battery optimization exemption:', error);
+      return true;
+    }
+  }
+  return true;
+};
+
+export const requestBatteryOptimizationExempt = async () => {
+  if (Platform.OS === 'android' && DefaultDialer?.requestBatteryOptimizationExempt) {
+    try {
+      return await DefaultDialer.requestBatteryOptimizationExempt();
+    } catch (error) {
+      console.error('Failed to request battery optimization exemption:', error);
+      return false;
+    }
+  }
+  return false;
+};
+
+export const openOemAutostartSettings = async () => {
+  if (Platform.OS === 'android' && DefaultDialer?.openOemAutostartSettings) {
+    try {
+      return await DefaultDialer.openOemAutostartSettings();
+    } catch (error) {
+      console.error('Failed to open OEM autostart settings:', error);
+      return false;
+    }
+  }
+  return false;
+};

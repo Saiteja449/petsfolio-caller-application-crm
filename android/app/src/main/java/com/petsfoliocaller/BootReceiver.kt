@@ -16,7 +16,9 @@ import com.petsfoliocaller.db.CallEventDatabase
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("BootReceiver", "Boot completed, checking for pending call events")
+            Log.d("BootReceiver", "Boot completed, starting CallMonitorService")
+            CallMonitorService.start(context)
+            
             try {
                 val dao = CallEventDatabase.getInstance(context).callEventDao()
                 val pendingCount = dao.getPendingCount()

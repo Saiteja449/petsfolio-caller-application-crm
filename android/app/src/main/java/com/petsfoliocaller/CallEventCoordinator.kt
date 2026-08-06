@@ -78,7 +78,14 @@ object CallEventCoordinator {
                 val pendingCount = dao.getPendingCount()
 
                 // Decide whether to launch app or send event
-                launchOrNotify(context, pendingCount)
+                launchOrNotify(
+                    context = context,
+                    pendingCount = pendingCount,
+                    phoneNumber = phoneNumber,
+                    callDirection = callDirection,
+                    callStatus = callStatus,
+                    durationSeconds = durationSeconds
+                )
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to process call ended event", e)
@@ -99,14 +106,43 @@ object CallEventCoordinator {
     }
 
     /**
-     * Launch the app or send a native event if already alive.
+     * Check if our application package is currently in the foreground.
+     */
+    private fun isAppInForeground(context: Context): Boolean {
+        try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val appProcesses = activityManager.runningAppProcesses ?: return false
+            val packageName = context.packageName
+            for (appProcess in appProcesses) {
+                if (appProcess.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND &&
+                    appProcess.processName == packageName) {
+                    return true
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking app foreground state", e)
+        }
+        return false
+    }
+
+    /**
+     * Launch the app, show overlay, or send a native event if already alive.
      * 
      * - If there's an active call (another call in progress), do NOT launch yet.
      *   The event is safely persisted in Room and will be picked up when the last call ends.
-     * - If app is alive, send a JS event to refresh the queue.
-     * - If app is dead, launch MainActivity.
+     * - If app is in foreground, send a JS event to refresh the queue.
+     * - If app is in background/closed, check overlay permission.
+     *   - If overlay permission is granted, show the native overlay window.
+     *   - If denied, show the high-priority notification.
      */
-    private fun launchOrNotify(context: Context, pendingCount: Int) {
+    private fun launchOrNotify(
+        context: Context,
+        pendingCount: Int,
+        phoneNumber: String,
+        callDirection: String,
+        callStatus: String,
+        durationSeconds: Int
+    ) {
         // Don't launch if there's still an active call
         if (CallManager.currentCall != null) {
             Log.d(TAG, "Active call in progress, skipping launch. Event is persisted.")
@@ -127,8 +163,31 @@ object CallEventCoordinator {
             }
         }
 
-        // Always bring the activity to the foreground/launch it
-        launchMainActivity(context)
+        // Route display depending on foreground state and overlay permissions
+        if (isAppInForeground(context)) {
+            Log.d(TAG, "App is in foreground. Bringing MainActivity to front just in case.")
+            launchMainActivity(context)
+        } else {
+            val hasOverlayPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                android.provider.Settings.canDrawOverlays(context)
+            } else {
+                true
+            }
+
+            if (hasOverlayPermission) {
+                Log.d(TAG, "App is in background. Overlay permission is granted. Showing overlay.")
+                PostCallOverlayWindow.show(
+                    context = context,
+                    phoneNumber = phoneNumber,
+                    callDirection = callDirection,
+                    callStatus = callStatus,
+                    durationSeconds = durationSeconds
+                )
+            } else {
+                Log.d(TAG, "App is in background. Overlay permission is denied. Showing notification.")
+                NotificationHelper.showPostCallNotification(context)
+            }
+        }
     }
 
     /**
@@ -143,7 +202,7 @@ object CallEventCoordinator {
             context.startActivity(intent)
             Log.d(TAG, "Launched MainActivity with ACTION_POST_CALL")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to launch MainActivity, showing notification fallback", e)
+            Log.e(TAG, "Failed to launch MainActivity", e)
             NotificationHelper.showPostCallNotification(context)
         }
     }
