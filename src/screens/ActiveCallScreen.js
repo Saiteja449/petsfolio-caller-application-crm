@@ -34,21 +34,24 @@ import {
 const STATUS_OPTIONS = [
   'New',
   'Follow Up',
-  'Not Attended',
-  'Price Issue',
   'Not Interested',
   'Not Responding',
+  'Not Attended',
+  'Price Issue',
   'Joined',
-  'Job Posted',
-  'Job Assigned',
+  'Active',
 ];
 
 const SERVICE_OPTIONS = [
-  'Grooming',
-  'Walking',
-  'Training',
-  'Pet Sitting',
-  'Pet Insurance',
+  'digital marketing',
+  'java full stack',
+  'cybersecurity',
+  'Gen AI',
+  'Mobile application',
+  '.net',
+  'web designing',
+  'content writing',
+  'general enquiry',
 ];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
@@ -106,7 +109,7 @@ const ActiveCallScreen = () => {
           name: match.name,
           phone: match.phone,
           status: matchStatus,
-          service: match.service || 'Grooming',
+          service: match.service || 'general enquiry',
           nextFollowUp: match.nextFollowUp || '',
           followupTime: match.followupTime || '',
           comments: match.notes || match.comments || '',
@@ -120,7 +123,7 @@ const ActiveCallScreen = () => {
           name: pendingLeadUpdate.name || '',
           phone: pendingLeadUpdate.phone,
           status: 'New',
-          service: '',
+          service: 'general enquiry',
           nextFollowUp: '',
           followupTime: '',
           comments: '',
@@ -475,10 +478,7 @@ const ActiveCallScreen = () => {
                 style={styles.dropdownOptionsContainerScroll}
                 nestedScrollEnabled={true}
               >
-                {(formData.service === 'Pet Insurance'
-                  ? [...STATUS_OPTIONS, 'Policy Active']
-                  : STATUS_OPTIONS
-                ).map(opt => (
+                {STATUS_OPTIONS.map(opt => (
                   <TouchableOpacity
                     key={opt}
                     style={styles.dropdownOption}

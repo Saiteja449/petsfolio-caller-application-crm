@@ -5,6 +5,38 @@ import { API_ENDPOINTS } from '../utils/constants';
 
 const LeadsContext = createContext(null);
 
+const getRecordingMeta = recordingPath => {
+  const rawPath = String(recordingPath || '');
+  const normalizedPath = rawPath.split('?')[0].split('#')[0];
+  const fileName = normalizedPath.split('/').pop() || 'recording.m4a';
+  const hasExtension = /\.[a-z0-9]+$/i.test(fileName);
+
+  let mimeType = 'audio/mp4';
+  let defaultExtension = '.m4a';
+  const extension = hasExtension ? fileName.split('.').pop().toLowerCase() : '';
+
+  if (extension === 'm4a') {
+    mimeType = 'audio/m4a';
+    defaultExtension = '.m4a';
+  } else if (extension === 'mp3') {
+    mimeType = 'audio/mpeg';
+    defaultExtension = '.mp3';
+  } else if (extension === 'wav') {
+    mimeType = 'audio/wav';
+    defaultExtension = '.wav';
+  } else if (extension === 'ogg') {
+    mimeType = 'audio/ogg';
+    defaultExtension = '.ogg';
+  }
+
+  const uploadFileName = hasExtension ? fileName : `${fileName}${defaultExtension}`;
+  const uri = rawPath.startsWith('file://') || rawPath.startsWith('content://')
+    ? rawPath
+    : `file://${rawPath.startsWith('/') ? '' : '/'}${rawPath}`;
+
+  return { uri, fileName: uploadFileName, mimeType };
+};
+
 export const LeadsProvider = ({ children }) => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
@@ -87,25 +119,19 @@ export const LeadsProvider = ({ children }) => {
       let requestConfig = config;
 
       if (updatedFields.recordingPath) {
+        const recordingMeta = getRecordingMeta(updatedFields.recordingPath);
         requestPayload = new FormData();
         Object.keys(leadUpdatePayload).forEach(key => {
           if (leadUpdatePayload[key] !== undefined) {
             requestPayload.append(key, leadUpdatePayload[key]);
           }
         });
-        const filename = updatedFields.recordingPath.split('/').pop();
         requestPayload.append('recording', {
-          uri: 'file://' + updatedFields.recordingPath,
-          name: filename,
-          type: 'audio/mp4',
+          uri: recordingMeta.uri,
+          name: recordingMeta.fileName,
+          type: recordingMeta.mimeType,
         });
-        requestConfig = {
-          ...config,
-          headers: {
-            ...config.headers,
-            'Content-Type': 'multipart/form-data',
-          },
-        };
+        requestConfig = config;
       }
 
       // Await API calls
@@ -206,7 +232,7 @@ export const LeadsProvider = ({ children }) => {
           }
         }
       } catch (e) {
-        console.error('Background update failed', e?.response?.data || e.message || e);
+        console.error('Background update failed', e);
         return { success: false, error: e };
       }
 
@@ -231,7 +257,7 @@ export const LeadsProvider = ({ children }) => {
         name: leadData.name || 'Unknown Caller',
         phone: leadData.phone,
         source: leadData.source || 'Call',
-        service: leadData.service || 'General Enquiry',
+        service: leadData.service || 'general enquiry',
         status: leadData.status || 'New',
         assignedTo: user?.name || 'Unassigned',
         nextFollowUp: leadData.nextFollowUp || '',
@@ -247,25 +273,19 @@ export const LeadsProvider = ({ children }) => {
       let requestConfig = config;
 
       if (leadData.recordingPath) {
+        const recordingMeta = getRecordingMeta(leadData.recordingPath);
         requestPayload = new FormData();
         Object.keys(payload).forEach(key => {
           if (payload[key] !== undefined) {
             requestPayload.append(key, payload[key]);
           }
         });
-        const filename = leadData.recordingPath.split('/').pop();
         requestPayload.append('recording', {
-          uri: 'file://' + leadData.recordingPath,
-          name: filename,
-          type: 'audio/mp4',
+          uri: recordingMeta.uri,
+          name: recordingMeta.fileName,
+          type: recordingMeta.mimeType,
         });
-        requestConfig = {
-          ...config,
-          headers: {
-            ...config.headers,
-            'Content-Type': 'multipart/form-data',
-          },
-        };
+        requestConfig = config;
       }
 
       // Await backend create call

@@ -51,21 +51,24 @@ const TABS = [
 const STATUS_OPTIONS = [
   'New',
   'Follow Up',
-  'Not Attended',
-  'Price Issue',
   'Not Interested',
   'Not Responding',
+  'Not Attended',
+  'Price Issue',
   'Joined',
-  'Job Posted',
-  'Job Assigned',
+  'Active',
 ];
 
 const SERVICE_OPTIONS = [
-  'Grooming',
-  'Walking',
-  'Training',
-  'Pet Sitting',
-  'Pet Insurance',
+  'digital marketing',
+  'java full stack',
+  'cybersecurity',
+  'Gen AI',
+  'Mobile application',
+  '.net',
+  'web designing',
+  'content writing',
+  'general enquiry',
 ];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
@@ -104,7 +107,7 @@ const LeadsScreen = () => {
     name: '',
     phone: '',
     status: 'New',
-    service: 'Grooming',
+    service: 'general enquiry',
     nextFollowUp: '',
     followupTime: '',
     comments: '',
@@ -198,7 +201,7 @@ const LeadsScreen = () => {
       name: lead.name,
       phone: lead.phone,
       status: lead.status || 'New',
-      service: lead.service || 'Grooming',
+      service: lead.service || 'general enquiry',
       nextFollowUp: lead.nextFollowUp || '',
       followupTime: lead.followupTime || '',
       comments: lead.notes || lead.comments || '',
@@ -300,7 +303,7 @@ const LeadsScreen = () => {
     try {
       const res = await createLead({
         ...createForm,
-        source: 'Mobile App',
+        source: 'Call',
       });
       if (res.success) {
         showToast('Lead created successfully', 'success');
@@ -309,7 +312,7 @@ const LeadsScreen = () => {
           name: '',
           phone: '',
           status: 'New',
-          service: '',
+          service: 'general enquiry',
           nextFollowUp: '',
           followupTime: '',
           comments: '',
@@ -537,10 +540,7 @@ const LeadsScreen = () => {
                   style={styles.dropdownOptionsContainerScroll}
                   nestedScrollEnabled={true}
                 >
-                  {(editForm.service === 'Pet Insurance'
-                    ? [...STATUS_OPTIONS, 'Policy Active']
-                    : STATUS_OPTIONS
-                  ).map(opt => (
+                  {STATUS_OPTIONS.map(opt => (
                     <TouchableOpacity
                       key={opt}
                       style={styles.dropdownOption}
@@ -800,10 +800,7 @@ const LeadsScreen = () => {
                   style={styles.dropdownOptionsContainerScroll}
                   nestedScrollEnabled={true}
                 >
-                  {(createForm.service === 'Pet Insurance'
-                    ? [...STATUS_OPTIONS, 'Policy Active']
-                    : STATUS_OPTIONS
-                  ).map(opt => (
+                  {STATUS_OPTIONS.map(opt => (
                     <TouchableOpacity
                       key={opt}
                       style={styles.dropdownOption}
