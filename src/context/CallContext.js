@@ -150,7 +150,7 @@ export const CallProvider = ({ children }) => {
                       : log.customerName,
                   phone: log.phoneNumber,
                   source: 'Call',
-                  service: 'general enquiry',
+                  service: 'Miniature Cow Sales',
                   status: 'New',
                 });
               }

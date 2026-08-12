@@ -42,10 +42,11 @@ const TABS = [
   { key: 'TodayFollowup', label: 'Today Followups' },
   { key: 'UpcomingFollowup', label: 'Upcoming Followups' },
   { key: 'NotAttended', label: 'Not Attended' },
-  { key: 'Joined', label: 'Joined' },
-  { key: 'JobPosted', label: 'Job Posted' },
+  { key: 'PriceIssue', label: 'Price Issue' },
   { key: 'Converted', label: 'Converted' },
-  { key: 'Lost', label: 'Lost' },
+  { key: 'Active', label: 'Active' },
+  { key: 'ClosedWon', label: 'Closed Won' },
+  { key: 'PolicyActive', label: 'Policy Active' },
 ];
 
 const STATUS_OPTIONS = [
@@ -55,21 +56,13 @@ const STATUS_OPTIONS = [
   'Not Responding',
   'Not Attended',
   'Price Issue',
-  'Joined',
+  'Converted',
   'Active',
+  'Closed Won',
+  'Policy Active',
 ];
 
-const SERVICE_OPTIONS = [
-  'digital marketing',
-  'java full stack',
-  'cybersecurity',
-  'Gen AI',
-  'Mobile application',
-  '.net',
-  'web designing',
-  'content writing',
-  'general enquiry',
-];
+const SERVICE_OPTIONS = ['Miniature Cow Sales', 'General Enquiry'];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
 
@@ -107,7 +100,7 @@ const LeadsScreen = () => {
     name: '',
     phone: '',
     status: 'New',
-    service: 'general enquiry',
+    service: 'Miniature Cow Sales',
     nextFollowUp: '',
     followupTime: '',
     comments: '',
@@ -201,7 +194,7 @@ const LeadsScreen = () => {
       name: lead.name,
       phone: lead.phone,
       status: lead.status || 'New',
-      service: lead.service || 'general enquiry',
+      service: lead.service || 'Miniature Cow Sales',
       nextFollowUp: lead.nextFollowUp || '',
       followupTime: lead.followupTime || '',
       comments: lead.notes || lead.comments || '',
@@ -312,7 +305,7 @@ const LeadsScreen = () => {
           name: '',
           phone: '',
           status: 'New',
-          service: 'general enquiry',
+          service: 'Miniature Cow Sales',
           nextFollowUp: '',
           followupTime: '',
           comments: '',

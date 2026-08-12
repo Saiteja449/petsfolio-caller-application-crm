@@ -38,20 +38,15 @@ const STATUS_OPTIONS = [
   'Not Responding',
   'Not Attended',
   'Price Issue',
-  'Joined',
+  'Converted',
   'Active',
+  'Closed Won',
+  'Policy Active',
 ];
 
 const SERVICE_OPTIONS = [
-  'digital marketing',
-  'java full stack',
-  'cybersecurity',
-  'Gen AI',
-  'Mobile application',
-  '.net',
-  'web designing',
-  'content writing',
-  'general enquiry',
+  'Miniature Cow Sales',
+  'General Enquiry',
 ];
 
 const FOLLOWUP_TYPES = ['Call', 'WhatsApp', 'Email', 'Meeting', 'Consultation'];
@@ -109,7 +104,7 @@ const ActiveCallScreen = () => {
           name: match.name,
           phone: match.phone,
           status: matchStatus,
-          service: match.service || 'general enquiry',
+          service: match.service || 'Miniature Cow Sales',
           nextFollowUp: match.nextFollowUp || '',
           followupTime: match.followupTime || '',
           comments: match.notes || match.comments || '',
@@ -123,7 +118,7 @@ const ActiveCallScreen = () => {
           name: pendingLeadUpdate.name || '',
           phone: pendingLeadUpdate.phone,
           status: 'New',
-          service: 'general enquiry',
+          service: 'Miniature Cow Sales',
           nextFollowUp: '',
           followupTime: '',
           comments: '',
