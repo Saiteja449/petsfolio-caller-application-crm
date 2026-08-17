@@ -74,7 +74,7 @@ export const LeadsProvider = ({ children }) => {
         name: updatedFields.name,
         phone: updatedFields.phone,
         status: updatedFields.status,
-        service: updatedFields.service,
+        services: updatedFields.services,
         nextFollowUp: updatedFields.nextFollowUp,
         notes: updatedFields.comments,
       };
@@ -231,7 +231,7 @@ export const LeadsProvider = ({ children }) => {
         name: leadData.name || 'Unknown Caller',
         phone: leadData.phone,
         source: leadData.source || 'Call',
-        service: leadData.service || 'General Enquiry',
+        services: leadData.services && leadData.services.length > 0 ? leadData.services : ['General Enquiry'],
         status: leadData.status || 'New',
         assignedTo: user?.name || 'Unassigned',
         nextFollowUp: leadData.nextFollowUp || '',

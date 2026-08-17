@@ -69,7 +69,7 @@ const ActiveCallScreen = () => {
     name: '',
     phone: '',
     status: '',
-    service: '',
+    services: [],
     nextFollowUp: '',
     followupTime: '',
     comments: '',
@@ -106,7 +106,7 @@ const ActiveCallScreen = () => {
           name: match.name,
           phone: match.phone,
           status: matchStatus,
-          service: match.service || 'Grooming',
+          services: match.services && match.services.length > 0 ? match.services : ['Grooming'],
           nextFollowUp: match.nextFollowUp || '',
           followupTime: match.followupTime || '',
           comments: match.notes || match.comments || '',
@@ -120,7 +120,7 @@ const ActiveCallScreen = () => {
           name: pendingLeadUpdate.name || '',
           phone: pendingLeadUpdate.phone,
           status: 'New',
-          service: '',
+          services: [],
           nextFollowUp: '',
           followupTime: '',
           comments: '',
@@ -425,13 +425,13 @@ const ActiveCallScreen = () => {
               keyboardType="phone-pad"
             />
 
-            <Text style={styles.label}>Service Interest</Text>
+            <Text style={styles.label}>Services Interest</Text>
             <TouchableOpacity
               style={styles.dropdownSelector}
               onPress={() => setIsServiceOpen(!isServiceOpen)}
             >
               <Text style={styles.dropdownSelectorText}>
-                {formData.service || 'Select Service'}
+                {formData.services?.length > 0 ? formData.services.join(', ') : 'Select Services'}
               </Text>
               <ChevronRightIcon size={16} color={Colors.textMuted} />
             </TouchableOpacity>
@@ -442,14 +442,16 @@ const ActiveCallScreen = () => {
                     key={opt}
                     style={styles.dropdownOption}
                     onPress={() => {
-                      setFormData({ ...formData, service: opt });
-                      setIsServiceOpen(false);
+                      const newServices = formData.services?.includes(opt)
+                        ? formData.services.filter(s => s !== opt)
+                        : [...(formData.services || []), opt];
+                      setFormData({ ...formData, services: newServices });
                     }}
                   >
                     <Text
                       style={[
                         styles.dropdownOptionText,
-                        formData.service === opt &&
+                        formData.services?.includes(opt) &&
                           styles.dropdownOptionTextActive,
                       ]}
                     >
@@ -475,7 +477,7 @@ const ActiveCallScreen = () => {
                 style={styles.dropdownOptionsContainerScroll}
                 nestedScrollEnabled={true}
               >
-                {(formData.service === 'Pet Insurance'
+                {(formData.services?.includes('Pet Insurance')
                   ? [...STATUS_OPTIONS, 'Policy Active']
                   : STATUS_OPTIONS
                 ).map(opt => (

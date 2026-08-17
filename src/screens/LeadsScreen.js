@@ -86,7 +86,7 @@ const LeadsScreen = () => {
     name: '',
     phone: '',
     status: '',
-    service: '',
+    services: [],
     nextFollowUp: '',
     followupTime: '',
     comments: '',
@@ -104,7 +104,7 @@ const LeadsScreen = () => {
     name: '',
     phone: '',
     status: 'New',
-    service: 'Grooming',
+    services: ['Grooming'],
     nextFollowUp: '',
     followupTime: '',
     comments: '',
@@ -198,7 +198,7 @@ const LeadsScreen = () => {
       name: lead.name,
       phone: lead.phone,
       status: lead.status || 'New',
-      service: lead.service || 'Grooming',
+      services: lead.services && lead.services.length > 0 ? lead.services : ['Grooming'],
       nextFollowUp: lead.nextFollowUp || '',
       followupTime: lead.followupTime || '',
       comments: lead.notes || lead.comments || '',
@@ -309,7 +309,7 @@ const LeadsScreen = () => {
           name: '',
           phone: '',
           status: 'New',
-          service: '',
+          services: ['Grooming'],
           nextFollowUp: '',
           followupTime: '',
           comments: '',
@@ -487,13 +487,13 @@ const LeadsScreen = () => {
                 keyboardType="phone-pad"
               />
 
-              <Text style={styles.inputLabel}>Service Interest</Text>
+              <Text style={styles.inputLabel}>Services Interest</Text>
               <TouchableOpacity
                 style={styles.dropdownSelector}
                 onPress={() => setIsServiceOpen(!isServiceOpen)}
               >
                 <Text style={styles.dropdownSelectorText}>
-                  {editForm.service || 'Select Service'}
+                  {editForm.services?.length > 0 ? editForm.services.join(', ') : 'Select Services'}
                 </Text>
                 <ChevronRightIcon size={16} color={Colors.textMuted} />
               </TouchableOpacity>
@@ -504,14 +504,16 @@ const LeadsScreen = () => {
                       key={opt}
                       style={styles.dropdownOption}
                       onPress={() => {
-                        setEditForm({ ...editForm, service: opt });
-                        setIsServiceOpen(false);
+                        const newServices = editForm.services?.includes(opt)
+                          ? editForm.services.filter(s => s !== opt)
+                          : [...(editForm.services || []), opt];
+                        setEditForm({ ...editForm, services: newServices });
                       }}
                     >
                       <Text
                         style={[
                           styles.dropdownOptionText,
-                          editForm.service === opt &&
+                          editForm.services?.includes(opt) &&
                             styles.dropdownOptionTextActive,
                         ]}
                       >
@@ -537,7 +539,7 @@ const LeadsScreen = () => {
                   style={styles.dropdownOptionsContainerScroll}
                   nestedScrollEnabled={true}
                 >
-                  {(editForm.service === 'Pet Insurance'
+                  {(editForm.services?.includes('Pet Insurance')
                     ? [...STATUS_OPTIONS, 'Policy Active']
                     : STATUS_OPTIONS
                   ).map(opt => (
@@ -750,13 +752,13 @@ const LeadsScreen = () => {
                 keyboardType="phone-pad"
               />
 
-              <Text style={styles.inputLabel}>Service Interest</Text>
+              <Text style={styles.inputLabel}>Services Interest</Text>
               <TouchableOpacity
                 style={styles.dropdownSelector}
                 onPress={() => setIsCreateServiceOpen(!isCreateServiceOpen)}
               >
                 <Text style={styles.dropdownSelectorText}>
-                  {createForm.service || 'Select Service'}
+                  {createForm.services?.length > 0 ? createForm.services.join(', ') : 'Select Services'}
                 </Text>
                 <ChevronRightIcon size={16} color={Colors.textMuted} />
               </TouchableOpacity>
@@ -767,14 +769,16 @@ const LeadsScreen = () => {
                       key={opt}
                       style={styles.dropdownOption}
                       onPress={() => {
-                        setCreateForm({ ...createForm, service: opt });
-                        setIsCreateServiceOpen(false);
+                        const newServices = createForm.services?.includes(opt)
+                          ? createForm.services.filter(s => s !== opt)
+                          : [...(createForm.services || []), opt];
+                        setCreateForm({ ...createForm, services: newServices });
                       }}
                     >
                       <Text
                         style={[
                           styles.dropdownOptionText,
-                          createForm.service === opt &&
+                          createForm.services?.includes(opt) &&
                             styles.dropdownOptionTextActive,
                         ]}
                       >
@@ -800,7 +804,7 @@ const LeadsScreen = () => {
                   style={styles.dropdownOptionsContainerScroll}
                   nestedScrollEnabled={true}
                 >
-                  {(createForm.service === 'Pet Insurance'
+                  {(createForm.services?.includes('Pet Insurance')
                     ? [...STATUS_OPTIONS, 'Policy Active']
                     : STATUS_OPTIONS
                   ).map(opt => (

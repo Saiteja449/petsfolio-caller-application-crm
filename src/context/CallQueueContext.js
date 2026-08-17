@@ -101,7 +101,7 @@ export const CallQueueProvider = ({ children }) => {
         name: formData.name,
         phone: formData.phone,
         status: formData.status,
-        service: formData.service,
+        services: formData.services,
         nextFollowUp: formData.nextFollowUp,
         followupTime: formData.followupTime,
         comments: formData.comments,

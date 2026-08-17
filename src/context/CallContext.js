@@ -150,7 +150,7 @@ export const CallProvider = ({ children }) => {
                       : log.customerName,
                   phone: log.phoneNumber,
                   source: 'Call',
-                  service: 'General Enquiry',
+                  services: ['General Enquiry'],
                   status: 'New',
                 });
               }
