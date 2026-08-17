@@ -1,5 +1,5 @@
 // API Base URL - Update this when deploying or changing local IP
-export const BASE_URL = 'https://holyminicow.com/minicow-crm-live//api';
+export const BASE_URL = 'https://holyminicow.com/minicow-crm-live/api';
 
 export const API_ENDPOINTS = {
   AUTH: {
