@@ -12,7 +12,6 @@ import {
   Platform,
   NativeEventEmitter,
   NativeModules,
-  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLeads } from './LeadsContext';
@@ -24,7 +23,6 @@ const CallContext = createContext(null);
 
 export const CallProvider = ({ children }) => {
   const [callLogs, setCallLogs] = useState([]);
-  const [pendingLeadUpdate, setPendingLeadUpdate] = useState(null);
   const [isSyncingCalls, setIsSyncingCalls] = useState(true);
   const [hasFetchedCalls, setHasFetchedCalls] = useState(false);
 
@@ -177,33 +175,7 @@ export const CallProvider = ({ children }) => {
     syncNewCallsToCRM();
   }, [syncNewCallsToCRM]);
 
-  const loadPending = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('pendingLeadUpdate');
-      if (stored) {
-        setPendingLeadUpdate(JSON.parse(stored));
-      }
-    } catch (err) {
-      console.error('Error loading pending lead', err);
-    }
-  };
 
-  useEffect(() => {
-    loadPending();
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') {
-        loadPending();
-      }
-    });
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  const clearPendingLeadUpdate = useCallback(async () => {
-    setPendingLeadUpdate(null);
-    await AsyncStorage.removeItem('pendingLeadUpdate');
-  }, []);
 
   // Update existing logs/calls when leads change
   useEffect(() => {
@@ -355,8 +327,6 @@ export const CallProvider = ({ children }) => {
         getFilteredCalls,
         getMissedCalls,
         getCallById,
-        pendingLeadUpdate,
-        clearPendingLeadUpdate,
         isSyncingCalls,
       }}
     >
