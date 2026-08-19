@@ -188,7 +188,8 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
                 android.provider.MediaStore.Audio.Media._ID,
                 android.provider.MediaStore.Audio.Media.DATA,
                 android.provider.MediaStore.Audio.Media.DISPLAY_NAME,
-                android.provider.MediaStore.Audio.Media.DATE_ADDED
+                android.provider.MediaStore.Audio.Media.DATE_ADDED,
+                android.provider.MediaStore.Audio.Media.SIZE
             )
             val sortOrder = "${android.provider.MediaStore.Audio.Media.DATE_ADDED} DESC"
             
@@ -207,9 +208,17 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
                 if (cursor.moveToFirst()) {
                     val idColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)
                     val nameColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
+                    val sizeColumn = cursor.getColumnIndex(android.provider.MediaStore.Audio.Media.SIZE)
                     
                     val id = cursor.getLong(idColumn)
                     val fileName = cursor.getString(nameColumn)
+                    val fileSize = if (sizeColumn >= 0) cursor.getLong(sizeColumn) else 0L
+                    
+                    // Skip files larger than 100MB to prevent cache issues
+                    if (fileSize > 100 * 1024 * 1024) {
+                        promise.reject("FILE_TOO_LARGE", "Audio file is too large to auto-fetch (${fileSize / (1024 * 1024)}MB). Please pick manually.")
+                        return
+                    }
                     
                     val contentUri = android.content.ContentUris.withAppendedId(
                         android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -222,10 +231,32 @@ class DefaultDialerModule(reactContext: ReactApplicationContext) : ReactContextB
                         reactApplicationContext.cacheDir.mkdirs()
                     }
                     
-                    reactApplicationContext.contentResolver.openInputStream(contentUri)?.use { input ->
-                        java.io.FileOutputStream(cacheFile).use { output ->
-                            input.copyTo(output)
+                    try {
+                        val inputStream = reactApplicationContext.contentResolver.openInputStream(contentUri)
+                        if (inputStream == null) {
+                            promise.reject("IO_ERROR", "Could not open audio file. It may have been deleted.")
+                            return
                         }
+                        inputStream.use { input ->
+                            java.io.FileOutputStream(cacheFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    } catch (e: java.io.IOException) {
+                        // Clean up partial cache file
+                        if (cacheFile.exists()) cacheFile.delete()
+                        promise.reject("IO_ERROR", "Failed to copy audio file: ${e.message}")
+                        return
+                    } catch (e: SecurityException) {
+                        promise.reject("PERMISSION_ERROR", "Permission denied accessing audio file: ${e.message}")
+                        return
+                    }
+                    
+                    // Verify the copy succeeded
+                    if (!cacheFile.exists() || cacheFile.length() == 0L) {
+                        if (cacheFile.exists()) cacheFile.delete()
+                        promise.reject("IO_ERROR", "Audio file copy failed - resulting file is empty")
+                        return
                     }
                     
                     val map = com.facebook.react.bridge.Arguments.createMap()

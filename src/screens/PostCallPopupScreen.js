@@ -190,7 +190,7 @@ const PostCallPopupScreen = () => {
     try {
       const [res] = await pick({
         allowMultiSelection: false,
-        type: [types.audio, types.allFiles],
+        type: [types.audio],
         presentationStyle: 'fullScreen',
       });
       setRecordedFilePath(res.uri);

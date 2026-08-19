@@ -1,5 +1,4 @@
 import { Platform, Linking, NativeModules } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { DefaultDialer } = NativeModules;
 
@@ -88,7 +87,6 @@ export const makeCall = async (phoneNumber) => {
     const url = `tel:${cleanNumber}`;
     const supported = await Linking.canOpenURL(url);
     if (supported) {
-      await AsyncStorage.setItem('pendingLeadUpdate', JSON.stringify({ phone: phoneNumber }));
       await Linking.openURL(url);
       return true;
     } else {
